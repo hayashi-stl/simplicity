@@ -267,6 +267,81 @@ mod tests {
     use super::*;
     use test_case::test_case;
 
+    // Test-specific to determine case reached
+    macro_rules! case {
+        ($arr:expr => $pi:ident, $pj:ident $(, @ $swiz:ident)?) => {
+            if $pi$(.$swiz)? != $pj$(.$swiz)? {
+                return $arr
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident $(, @ $swiz:ident)?) => {
+            let val = fe::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
+            if val != 0.0 {
+                return $arr
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident $(, @ $swiz:ident)?) => {
+            let val = fe::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
+            if val != 0.0 {
+                return $arr
+            }
+        };
+    }
+
+    // Copied from orient_2d
+    pub fn orient_2d_case<T: ?Sized>(
+        list: &T,
+        index_fn: impl Fn(&T, usize) -> Vec2,
+        i: usize,
+        j: usize,
+        k: usize,
+    ) -> [usize; 3] {
+        let ([i, j, k], odd) = sorted_3([i, j, k]);
+        let pi = index_fn(list, i);
+        let pj = index_fn(list, j);
+        let pk = index_fn(list, k);
+
+        case!([3, 3, 3] => pi, pj, pk);
+        case!([2, 3, 3] => pk, pj, @ x);
+        case!([1, 3, 3] => pj, pk, @ y);
+        case!([2, 2, 3] => pi, pk, @ x);
+        [1, 2, 3]
+    }
+
+    // Copied from orient_3d
+    pub fn orient_3d_case<T: ?Sized>(
+        list: &T,
+        index_fn: impl Fn(&T, usize) -> Vec3,
+        i: usize,
+        j: usize,
+        k: usize,
+        l: usize,
+    ) -> [usize; 4] {
+        let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
+        let pi = index_fn(list, i);
+        let pj = index_fn(list, j);
+        let pk = index_fn(list, k);
+        let pl = index_fn(list, l);
+
+        case!([4, 4, 4, 4] => pi, pj, pk, pl);
+        case!([3, 4, 4, 4] => pj, pk, pl, @ xy);
+        case!([2, 4, 4, 4] => pj, pk, pl, @ zx);
+        case!([1, 4, 4, 4] => pj, pk, pl, @ yz);
+        case!([3, 3, 4, 4] => pi, pk, pl, @ yx);
+        case!([2, 3, 4, 4] => pk, pl, @ x);
+        case!([1, 3, 4, 4] => pl, pk, @ y);
+        case!([2, 2, 4, 4] => pi, pk, pl, @ xz);
+        case!([1, 2, 4, 4] => pk, pl, @ z);
+        //case!([1, 1, 4, 4] => pi, pk, pl, @ zy); Impossible
+        case!([3, 3, 3, 4] => pi, pj, pl, @ xy);
+        case!([2, 3, 3, 4] => pl, pj, @ x);
+        case!([1, 3, 3, 4] => pj, pl, @ y);
+        case!([2, 2, 3, 4] => pi, pl, @ x);
+        [1, 2, 3, 4]
+    }
+
     #[test]
     fn orient_1d_positive() {
         let points = vec![0.0, 1.0];
@@ -291,12 +366,12 @@ mod tests {
         assert!(!orient_1d(&points, |l, i| Vector1::new(l[i]), 1, 0))
     }
 
-    #[test_case([[0.0, 0.0], [1.0, 0.0], [2.0, 1.0]] ; "[3,3,3;3]: General")]
-    #[test_case([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]] ; "[2,3,3;3]: Collinear")]
-    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 1.0]] ; "[1,3,3;3]: Collinear, pj.x = pk.x")]
-    #[test_case([[1.0, 0.0], [0.0, 2.0], [0.0, 2.0]] ; "[2,2,3;3]: pj = pk")]
-    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 2.0]] ; "[1,2,3;3]: pj = pk, pi.x = pk.x")]
-    fn test_orient_2d(points: [[f64; 2]; 3]) {
+    #[test_case([[0.0, 0.0], [1.0, 0.0], [2.0, 1.0]], [3,3,3] ; "General")]
+    #[test_case([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]], [2,3,3] ; "Collinear")]
+    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 1.0]], [1,3,3] ; "Collinear, pj.x = pk.x")]
+    #[test_case([[1.0, 0.0], [0.0, 2.0], [0.0, 2.0]], [2,2,3] ; "pj = pk")]
+    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 2.0]], [1,2,3] ; "pj = pk, pi.x = pk.x")]
+    fn test_orient_2d(points: [[f64; 2]; 3], case: [usize; 3]) {
         let points = points
             .iter()
             .copied()
@@ -308,24 +383,25 @@ mod tests {
         assert!(orient_2d(&points, |l, i| l[i], 1, 2, 0));
         assert!(orient_2d(&points, |l, i| l[i], 2, 0, 1));
         assert!(!orient_2d(&points, |l, i| l[i], 2, 1, 0));
+        assert_eq!(orient_2d_case(&points, |l, i| l[i], 0, 1, 2), case);
     }
 
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]] ; "[4,4,4,4;4]: General")]
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [3.0, 4.0, 5.0], [2.0, 3.0, 4.0]] ; "[3,4,4,4;4]: Coplanar")]
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 4.0], [3.0, 3.0, 5.0]] ; "[2,4,4,4;4]: Coplanar, pj pk pl @ xy collinear")]
-    #[test_case([[1.0, 0.0, 0.0], [1.0, 1.0, 1.0], [1.0, 4.0, 2.0], [1.0, 5.0, 3.0]] ; "[1,4,4,4;4]: Coplanar, pj.x = pk.x = pl.x or pj pk pl collinear")]
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]] ; "[3,3,4,4;4]: pj pk pl collinear")]
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 3.0], [3.0, 3.0, 5.0], [2.0, 2.0, 4.0]] ; "[2,3,4,4;4]: pj pk pl collinear, pi pk pl @ xy collinear")]
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 1.0, 3.0], [0.0, 2.0, 4.0], [0.0, 3.0, 5.0]] ; "[1,3,4,4;4]: pj pk pl collinear, pi pk pl @ xy collinear, pk.x = pl.x")]
-    #[test_case([[1.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 5.0], [0.0, 2.0, 4.0]] ; "[2,2,4,4;4]: pj pk pl collinear, pi pk pl @ xy collinear, pk.xy = pl.xy")]
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 5.0], [0.0, 2.0, 4.0]] ; "[1,2,4,4;4]: pj pk pl collinear, pi.x = pk.x = pl.x or pi pk pl collinear, pk.xy = pl.xy")]
-    //                                                                                  [1,1,4,4;4]: pk = pl and pi pk pl @ yz not collinear is impossible
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 1.0, 0.0], [2.0, 1.0, 0.0]] ; "[3,3,3,4;4]: pk = pl")]
-    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 2.0, 0.0], [2.0, 2.0, 0.0]] ; "[2,3,3,4;4]: pk = pl, pi pj pk collinear")]
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]] ; "[1,3,3,4;4]: pk = pl, pi pj pk collinear, pj.x = pk.x")]
-    #[test_case([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0]] ; "[2,2,3,4;4]: pj = pk = pl")]
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0]] ; "[1,2,3,4;4]: pj = pk = pl, pi.x = pk.x")]
-    fn test_orient_3d(points: [[f64; 3]; 4]) {
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]], [4,4,4,4] ; "General")]
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [3.0, 4.0, 5.0], [2.0, 3.0, 4.0]], [3,4,4,4] ; "Coplanar")]
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [2.0, 2.0, 4.0], [3.0, 3.0, 5.0]], [2,4,4,4] ; "Coplanar, pj pk pl @ xy collinear")]
+    #[test_case([[1.0, 0.0, 0.0], [1.0, 1.0, 1.0], [1.0, 4.0, 2.0], [1.0, 5.0, 3.0]], [1,4,4,4] ; "Coplanar, pj.x = pk.x = pl.x or pj pk pl collinear")]
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]], [3,3,4,4] ; "pj pk pl collinear")]
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 3.0], [3.0, 3.0, 5.0], [2.0, 2.0, 4.0]], [2,3,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear")]
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 1.0, 3.0], [0.0, 2.0, 4.0], [0.0, 3.0, 5.0]], [1,3,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear, pk.x = pl.x")]
+    #[test_case([[1.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 5.0], [0.0, 2.0, 4.0]], [2,2,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear, pk.xy = pl.xy")]
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 3.0], [0.0, 2.0, 4.0]], [1,2,4,4] ; "pj pk pl collinear, pi.x = pk.x = pl.x or pi pk pl collinear, pk.xy = pl.xy")]
+    //                                                                              , [1,1,4,4] ; "pk = pl and pi pk pl @ yz not collinear is impossible
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 1.0, 0.0], [2.0, 1.0, 0.0]], [3,3,3,4] ; "pk = pl")]
+    #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 2.0, 0.0], [2.0, 2.0, 0.0]], [2,3,3,4] ; "pk = pl, pi pj pk @ xy collinear")]
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]], [1,3,3,4] ; "pk = pl, pi pj pk @ xy collinear, pj.x = pk.x")]
+    #[test_case([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0]], [2,2,3,4] ; "pk = pl, pi pj pk @ xy collinear, pj.xy = pk.xy")]
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0], [0.0, 2.0, 0.0]], [1,2,3,4] ; "pk = pl, pi pj pk @ xy collinear, pj.xy = pk.xy, pi.x = pk.x")]
+    fn test_orient_3d(points: [[f64; 3]; 4], case: [usize; 4]) {
         let points = points
             .iter()
             .copied()
@@ -334,5 +410,6 @@ mod tests {
         // Trusting the insertion sort now
         assert!(orient_3d(&points, |l, i| l[i], 0, 1, 2, 3));
         assert!(!orient_3d(&points, |l, i| l[i], 3, 2, 0, 1));
+        assert_eq!(orient_3d_case(&points, |l, i| l[i], 0, 1, 2, 3), case);
     }
 }
