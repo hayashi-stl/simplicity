@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 nalgebra = "0.24.0"
+float_expansion = { git = "https://github.com/josh65536/float_expansion", branch = "main" }
+
+[dev-dependencies]
+test-case = "1.1.0"
