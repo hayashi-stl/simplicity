@@ -71,11 +71,10 @@
 use float_expansion as fe;
 pub use nalgebra;
 
-use nalgebra::{Vector1, Vector2, Vector3, Vector4};
+use nalgebra::{Vector1, Vector2, Vector3};
 type Vec1 = Vector1<f64>;
 type Vec2 = Vector2<f64>;
 type Vec3 = Vector3<f64>;
-type Vec4 = Vector4<f64>;
 
 macro_rules! sorted_fn {
     ($name:ident, $n:expr) => {
@@ -133,14 +132,56 @@ pub fn orient_1d<T: ?Sized>(
 }
 
 macro_rules! case {
+    (2: $pi:ident, $pj:ident, @ m2, != $odd:expr) => {
+        let val = fe::magnitude_cmp_2d($pi, $pj);
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
+    (2: $pi:ident, $pj:ident, @ m3, != $odd:expr) => {
+        let val = fe::magnitude_cmp_3d($pi, $pj);
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
     (2: $pi:ident, $pj:ident, $(@ $swiz:ident,)? != $odd:expr) => {
         if $pi$(.$swiz)? != $pj$(.$swiz)? {
             return ($pi$(.$swiz)? > $pj$(.$swiz)?) != $odd;
         }
     };
 
+    (3: $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m2, != $odd:expr) => {
+        let val = fe::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
+    (3: $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m3, != $odd:expr) => {
+        let val = fe::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
     (3: $pi:ident, $pj:ident, $pk:ident, $(@ $swiz:ident,)? != $odd:expr) => {
         let val = fe::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
+    (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ m2, != $odd:expr) => {
+        let val = fe::in_circle($pi, $pj, $pk, $pl);
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
+    (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ $swiz:ident m3, != $odd:expr) => {
+        let val = fe::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
@@ -152,6 +193,14 @@ macro_rules! case {
             return (val > 0.0) != $odd;
         }
     };
+
+    (5: $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ m3, != $odd:expr) => {
+        let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
+        if val != 0.0 {
+            return (val > 0.0) != $odd;
+        }
+    };
+
 }
 
 /// Returns whether the orientation of 3 points in 2-dimensional space
@@ -254,12 +303,61 @@ pub fn orient_3d<T: ?Sized>(
     !odd
 }
 
-pub fn orient_4d<T: ?Sized>(
+/// Returns whether the last point is inside the circle that goes through
+/// the first 3 points.
+///
+/// Takes a list of all the points in consideration, an indexing function,
+/// and 4 indexes to the points to calculate the in-circle of.
+///
+/// # Example
+///
+/// ```
+/// # use simulation_of_simplicity::{nalgebra, in_circle};
+/// # use nalgebra::Vector2;
+/// let points = vec![
+///     Vector2::new(0.0, 2.0),
+///     Vector2::new(1.0, 1.0),
+///     Vector2::new(2.0, 1.0),
+///     Vector2::new(0.0, 0.0),
+///     Vector2::new(2.0, 3.0),
+/// ];
+/// let inside = in_circle(&points, |l, i| l[i], 0, 2, 3, 1);
+/// assert!(inside);
+/// let inside = in_circle(&points, |l, i| l[i], 2, 3, 1, 4);
+/// assert!(!inside);
+/// ```
+pub fn in_circle<T: ?Sized>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec4,
-    indexes: [usize; 5],
+    index_fn: impl Fn(&T, usize) -> Vec2 + Clone,
+    i: usize,
+    j: usize,
+    k: usize,
+    l: usize,
 ) -> bool {
-    todo!()
+    let flip = !orient_2d(list, index_fn.clone(), i, j, k);
+    let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
+    let odd = odd != flip;
+
+    let pi = index_fn(list, i);
+    let pj = index_fn(list, j);
+    let pk = index_fn(list, k);
+    let pl = index_fn(list, l);
+
+    case!(4: pi, pj, pk, pl, @ m2, != odd);
+    case!(3: pj, pk, pl, @ xy, != odd);
+    case!(3: pj, pl, pk, @ xy m2, != odd);
+    case!(3: pj, pk, pl, @ yx m2, != odd);
+    case!(3: pi, pk, pl, @ yx, != odd);
+    case!(2: pk, pl, @ x, != odd);
+    case!(2: pl, pk, @ y, != odd);
+    // case!(3: pi, pk, pl, @ xy m2, != odd);
+    // case!(2: pk, pl, @ m2, != odd);
+    // case!(3: pi, pk, pl, @ zy, != odd); Impossible
+    case!(3: pi, pj, pl, @ xy, != odd);
+    case!(2: pl, pj, @ x, != odd);
+    case!(2: pj, pl, @ y, != odd);
+    case!(2: pi, pl, @ x, != odd);
+    !odd
 }
 
 #[cfg(test)]
@@ -269,23 +367,72 @@ mod tests {
 
     // Test-specific to determine case reached
     macro_rules! case {
+        ($arr:expr => $pi:ident, $pj:ident, @ m2) => {
+            let val = fe::magnitude_cmp_2d($pi, $pj);
+            if val != 0.0 {
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, @ m3) => {
+            let val = fe::magnitude_cmp_3d($pi, $pj);
+            if val != 0.0 {
+                return $arr;
+            }
+        };
+
         ($arr:expr => $pi:ident, $pj:ident $(, @ $swiz:ident)?) => {
             if $pi$(.$swiz)? != $pj$(.$swiz)? {
-                return $arr
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m2) => {
+            let val = fe::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+            if val != 0.0 {
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m3) => {
+            let val = fe::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+            if val != 0.0 {
+                return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident $(, @ $swiz:ident)?) => {
             let val = fe::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
             if val != 0.0 {
-                return $arr
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ m2) => {
+            let val = fe::in_circle($pi, $pj, $pk, $pl);
+            if val != 0.0 {
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ $swiz:ident m3) => {
+            let val = fe::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
+            if val != 0.0 {
+                return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident $(, @ $swiz:ident)?) => {
             let val = fe::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
             if val != 0.0 {
-                return $arr
+                return $arr;
+            }
+        };
+
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ m3) => {
+            let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
+            if val != 0.0 {
+                return $arr;
             }
         };
     }
@@ -298,7 +445,7 @@ mod tests {
         j: usize,
         k: usize,
     ) -> [usize; 3] {
-        let ([i, j, k], odd) = sorted_3([i, j, k]);
+        let ([i, j, k], _) = sorted_3([i, j, k]);
         let pi = index_fn(list, i);
         let pj = index_fn(list, j);
         let pk = index_fn(list, k);
@@ -319,7 +466,7 @@ mod tests {
         k: usize,
         l: usize,
     ) -> [usize; 4] {
-        let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
+        let ([i, j, k, l], _) = sorted_4([i, j, k, l]);
         let pi = index_fn(list, i);
         let pj = index_fn(list, j);
         let pk = index_fn(list, k);
@@ -335,6 +482,38 @@ mod tests {
         case!([2, 2, 4, 4] => pi, pk, pl, @ xz);
         case!([1, 2, 4, 4] => pk, pl, @ z);
         //case!([1, 1, 4, 4] => pi, pk, pl, @ zy); Impossible
+        case!([3, 3, 3, 4] => pi, pj, pl, @ xy);
+        case!([2, 3, 3, 4] => pl, pj, @ x);
+        case!([1, 3, 3, 4] => pj, pl, @ y);
+        case!([2, 2, 3, 4] => pi, pl, @ x);
+        [1, 2, 3, 4]
+    }
+
+    pub fn in_circle_case<T: ?Sized>(
+        list: &T,
+        index_fn: impl Fn(&T, usize) -> Vec2 + Clone,
+        i: usize,
+        j: usize,
+        k: usize,
+        l: usize,
+    ) -> [usize; 4] {
+        let ([i, j, k, l], _) = sorted_4([i, j, k, l]);
+
+        let pi = index_fn(list, i);
+        let pj = index_fn(list, j);
+        let pk = index_fn(list, k);
+        let pl = index_fn(list, l);
+
+        case!([4, 4, 4, 4] => pi, pj, pk, pl, @ m2);
+        case!([3, 4, 4, 4] => pj, pk, pl, @ xy);
+        case!([2, 4, 4, 4] => pj, pl, pk, @ xy m2);
+        case!([1, 4, 4, 4] => pj, pk, pl, @ yx m2);
+        case!([3, 3, 4, 4] => pi, pk, pl, @ yx);
+        case!([2, 3, 4, 4] => pk, pl, @ x);
+        case!([1, 3, 4, 4] => pl, pk, @ y);
+        //case!([2, 2, 4, 4] => pi, pk, pl, @ xy m2); Impossible
+        //case!([1, 2, 4, 4] => pk, pl, @ m2); Impossible
+        //case!([1, 1, 4, 4] => pi, pl, pk, @ yx m2); Impossible
         case!([3, 3, 3, 4] => pi, pj, pl, @ xy);
         case!([2, 3, 3, 4] => pl, pj, @ x);
         case!([1, 3, 3, 4] => pj, pl, @ y);
@@ -394,7 +573,7 @@ mod tests {
     #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 3.0], [3.0, 3.0, 5.0], [2.0, 2.0, 4.0]], [2,3,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear")]
     #[test_case([[0.0, 0.0, 0.0], [0.0, 1.0, 3.0], [0.0, 2.0, 4.0], [0.0, 3.0, 5.0]], [1,3,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear, pk.x = pl.x")]
     #[test_case([[1.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 5.0], [0.0, 2.0, 4.0]], [2,2,4,4] ; "pj pk pl collinear, pi pk pl @ xy collinear, pk.xy = pl.xy")]
-    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 3.0], [0.0, 2.0, 4.0]], [1,2,4,4] ; "pj pk pl collinear, pi.x = pk.x = pl.x or pi pk pl collinear, pk.xy = pl.xy")]
+    #[test_case([[0.0, 0.0, 0.0], [0.0, 2.0, 3.0], [0.0, 2.0, 4.0], [0.0, 2.0, 3.0]], [1,2,4,4] ; "pj pk pl collinear, pi.x = pk.x = pl.x or pi pk pl collinear, pk.xy = pl.xy")]
     //                                                                              , [1,1,4,4] ; "pk = pl and pi pk pl @ yz not collinear is impossible
     #[test_case([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 1.0, 0.0], [2.0, 1.0, 0.0]], [3,3,3,4] ; "pk = pl")]
     #[test_case([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 2.0, 0.0], [2.0, 2.0, 0.0]], [2,3,3,4] ; "pk = pl, pi pj pk @ xy collinear")]
@@ -411,5 +590,42 @@ mod tests {
         assert!(orient_3d(&points, |l, i| l[i], 0, 1, 2, 3));
         assert!(!orient_3d(&points, |l, i| l[i], 3, 2, 0, 1));
         assert_eq!(orient_3d_case(&points, |l, i| l[i], 0, 1, 2, 3), case);
+    }
+
+    #[test_case([[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [1.0, 1.0]], [4,4,4,4] ; "General")]
+    #[test_case([[1.0, 0.0], [3.0, 1.0], [2.0, 3.0], [0.0, 2.0]], [3,4,4,4] ; "Cocircular")]
+    #[test_case([[0.0, 0.0], [1.0, 1.0], [3.0, 3.0], [2.0, 2.0]], [2,4,4,4] ; "Cocircular, pj pk pl collinear")]
+    #[test_case([[1.0, 0.0], [1.0, 5.0], [1.0, 1.0], [1.0, 4.0]], [1,4,4,4] ; "Cocircular, pj.x = pk.x = pl.x or 2 of pj pk pl equal")]
+    #[test_case([[1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [2.0, 3.0]], [3,3,4,4] ; "2 of pj pk pl equal")]
+    #[test_case([[2.0, 2.0], [1.0, 1.0], [1.0, 1.0], [0.0, 0.0]], [2,3,4,4] ; "2 of pj pk pl equal, pi pk pl collinear")]
+    #[test_case([[1.0, 2.0], [1.0, 0.0], [1.0, 0.0], [1.0, 1.0]], [1,3,4,4] ; "2 of pj pk pl equal, pi.x = pk.x = pl.x or pk = pl")]
+    //                                                          , [2,2,4,4] ; "pk = pl and pi pk pl @ m2-x not collinear is impossible
+    //                                                          , [1,2,4,4] ; "pk = pl and pk.m2 != pl.m2 is impossible
+    //                                                          , [1,1,4,4] ; "pk = pl and pi pk pl @ y-m2 not collinear is impossible
+    #[test_case([[0.0, 0.0], [1.0, 0.0], [2.0, 1.0], [2.0, 1.0]], [3,3,3,4] ; "pk = pl")]
+    #[test_case([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [2.0, 2.0]], [2,3,3,4] ; "pk = pl, pi pj pk collinear")]
+    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 1.0], [0.0, 1.0]], [1,3,3,4] ; "pk = pl, pi.x = pj.x = pk.x or pj = pk")]
+    #[test_case([[1.0, 0.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]], [2,2,3,4] ; "pj = pk = pl")]
+    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]], [1,2,3,4] ; "pj = pk = pl, pi.x = pk.x")]
+    fn test_in_circle(points: [[f64; 2]; 4], case: [usize; 4]) {
+        let points = points
+            .iter()
+            .copied()
+            .map(Vector2::from)
+            .collect::<Vec<_>>();
+        // Trusting the insertion sort now
+        assert!(in_circle(&points, |l, i| l[i], 0, 1, 2, 3));
+        assert!(in_circle(&points, |l, i| l[i], 0, 2, 1, 3));
+        assert!(in_circle(&points, |l, i| l[i], 1, 2, 0, 3));
+        assert!(in_circle(&points, |l, i| l[i], 1, 0, 2, 3));
+        assert!(in_circle(&points, |l, i| l[i], 2, 0, 1, 3));
+        assert!(in_circle(&points, |l, i| l[i], 2, 1, 0, 3));
+        assert!(
+            (in_circle(&points, |l, i| l[i], 0, 1, 2, 3)
+                == in_circle(&points, |l, i| l[i], 0, 1, 3, 2))
+                == (orient_2d(&points, |l, i| l[i], 0, 1, 3)
+                    != orient_2d(&points, |l, i| l[i], 0, 1, 2))
+        );
+        assert_eq!(in_circle_case(&points, |l, i| l[i], 0, 1, 2, 3), case);
     }
 }
