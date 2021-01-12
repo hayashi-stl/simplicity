@@ -21,8 +21,18 @@
 //! from **p**_0. In particular, the orientation of 3 points in 2-dimensional space
 //! is positive iff they form a left turn.
 //!
-//! Orientation predicates for 1, 2, 3, and 4 dimensions are implemented.
+//! Orientation predicates for 1, 2, and 3 dimensions are implemented.
 //! They return whether the orientation is positive.
+//!
+//! ## In Hypersphere
+//!
+//! The in-circle of 4 points measures whether the last point is inside
+//! the circle that goes through the first 3 points. Those 3 points
+//! are not collinear because of the perturbations.
+//!
+//! The in-sphere of 5 points measures whether the last point is inside
+//! the sphere that goes through the first 4 points. Those 4 points
+//! are not coplanar because of the perturbations.
 //!
 //! # Usage
 //!
@@ -305,7 +315,7 @@ pub fn orient_3d<T: ?Sized>(
 }
 
 /// Returns whether the last point is inside the circle that goes through
-/// the first 3 points.
+/// the first 3 points after perturbing them.
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 4 indexes to the points to calculate the in-circle of.
@@ -362,7 +372,7 @@ pub fn in_circle<T: ?Sized>(
 }
 
 /// Returns whether the last point is inside the sphere that goes through
-/// the first 4 points.
+/// the first 4 points after perturbing them.
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 5 indexes to the points to calculate the in-sphere of.
@@ -829,6 +839,7 @@ mod tests {
     //                                                         [1,2,2,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
     //                                                         [1,1,2,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
     //                                                         [1,1,1,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
+    #[test_case([[0,0,0], [1,1,1], [0,1,0], [1,0,0], [1,0,0]], [4,4,4,4,5] ; "pl = pm")]
     #[test_case([[0,0,0], [1,1,1], [3,4,5], [2,3,4], [2,3,4]], [3,4,4,4,5] ; "pl = pm, coplanar")]
     #[test_case([[0,0,0], [1,1,1], [2,2,4], [3,3,5], [3,3,5]], [2,4,4,4,5] ; "pl = pm, coplanar, pj pk pl @ xy collinear")]
     #[test_case([[1,0,0], [1,1,1], [1,4,2], [1,5,3], [1,5,3]], [1,4,4,4,5] ; "pl = pm, coplanar, pj pk pl @ xy and yz collinear")]
