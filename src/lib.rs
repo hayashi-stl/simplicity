@@ -102,6 +102,7 @@ macro_rules! sorted_fn {
 
 sorted_fn!(sorted_3, 3);
 sorted_fn!(sorted_4, 4);
+sorted_fn!(sorted_5, 5);
 
 /// Returns whether the orientation of 2 points in 1-dimensional space
 /// is positive after perturbing them; that is, if the 1st one is
@@ -173,7 +174,7 @@ macro_rules! case {
         }
     };
 
-    (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ m2, != $odd:expr) => {
+    (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ xy m2, != $odd:expr) => {
         let val = fe::in_circle($pi, $pj, $pk, $pl);
         if val != 0.0 {
             return (val > 0.0) != $odd;
@@ -194,7 +195,7 @@ macro_rules! case {
         }
     };
 
-    (5: $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ m3, != $odd:expr) => {
+    (5: $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ xyz m3, != $odd:expr) => {
         let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
         if val != 0.0 {
             return (val > 0.0) != $odd;
@@ -343,20 +344,91 @@ pub fn in_circle<T: ?Sized>(
     let pk = index_fn(list, k);
     let pl = index_fn(list, l);
 
-    case!(4: pi, pj, pk, pl, @ m2, != odd);
+    case!(4: pi, pj, pk, pl, @ xy m2, != odd);
     case!(3: pj, pk, pl, @ xy, != odd);
     case!(3: pj, pl, pk, @ xy m2, != odd);
     case!(3: pj, pk, pl, @ yx m2, != odd);
     case!(3: pi, pk, pl, @ yx, != odd);
     case!(2: pk, pl, @ x, != odd);
     case!(2: pl, pk, @ y, != odd);
-    // case!(3: pi, pk, pl, @ xy m2, != odd);
-    // case!(2: pk, pl, @ m2, != odd);
+    // case!(3: pi, pk, pl, @ xy m2, != odd); Impossible
+    // case!(2: pk, pl, @ m2, != odd); Impossible
     // case!(3: pi, pk, pl, @ zy, != odd); Impossible
     case!(3: pi, pj, pl, @ xy, != odd);
     case!(2: pl, pj, @ x, != odd);
     case!(2: pj, pl, @ y, != odd);
     case!(2: pi, pl, @ x, != odd);
+    !odd
+}
+
+pub fn in_sphere<T: ?Sized>(
+    list: &T,
+    index_fn: impl Fn(&T, usize) -> Vec3 + Clone,
+    i: usize,
+    j: usize,
+    k: usize,
+    l: usize,
+    m: usize,
+) -> bool {
+    let flip = !orient_3d(list, index_fn.clone(), i, j, k, l);
+    let ([i, j, k, l, m], odd) = sorted_5([i, j, k, l, m]);
+    let odd = odd != flip;
+
+    let pi = index_fn(list, i);
+    let pj = index_fn(list, j);
+    let pk = index_fn(list, k);
+    let pl = index_fn(list, l);
+    let pm = index_fn(list, m);
+
+    case!(5: pi, pj, pk, pl, pm, @ xyz m3, != odd);
+    case!(4: pj, pk, pm, pl, != odd);
+    case!(4: pj, pk, pl, pm, @ xyz m3, != odd);
+    case!(4: pj, pk, pl, pm, @ zxy m3, != odd);
+    case!(4: pj, pk, pl, pm, @ yzx m3, != odd);
+    case!(4: pi, pk, pl, pm, != odd);
+    case!(3: pk, pl, pm, @ xy, != odd);
+    case!(3: pk, pl, pm, @ zx, != odd);
+    case!(3: pk, pl, pm, @ yz, != odd);
+    case!(4: pi, pk, pl, pm, @ yxz m3, != odd);
+    case!(3: pk, pl, pm, @ xyz m3, != odd);
+    case!(3: pk, pm, pl, @ yzx m3, != odd);
+    case!(4: pi, pk, pl, pm, @ xzy m3, != odd);
+    case!(3: pk, pl, pm, @ zxy m3, != odd);
+    case!(4: pi, pk, pl, pm, @ zyx m3, != odd);
+    case!(4: pi, pj, pm, pl, != odd);
+    case!(3: pj, pl, pm, @ yx, != odd);
+    case!(3: pj, pl, pm, @ xz, != odd);
+    case!(3: pj, pl, pm, @ zy, != odd);
+    case!(3: pi, pl, pm, @ xy, != odd);
+    case!(2: pm, pl, @ x, != odd);
+    case!(2: pl, pm, @ y, != odd);
+    case!(3: pi, pl, pm, @ zx, != odd);
+    case!(2: pm, pl, @ z, != odd);
+    case!(3: pi, pl, pm, @ yz, != odd);
+    case!(4: pi, pj, pl, pm, @ xyz m3, != odd);
+    case!(3: pj, pm, pl, @ xyz m3, != odd);
+    case!(3: pj, pl, pm, @ yzx m3, != odd);
+    case!(3: pi, pl, pm, @ xyz m3, != odd);
+    case!(2: pl, pm, @ m3, != odd);
+    case!(3: pi, pm, pl, @ yzx m3, != odd);
+    case!(4: pi, pj, pl, pm, @ zxy m3, != odd);
+    case!(3: pj, pm, pl, @ zxy m3, != odd);
+    case!(3: pi, pl, pm, @ zxy m3, != odd);
+    case!(4: pi, pj, pl, pm, @ yzx m3, != odd);
+    case!(4: pi, pj, pk, pm, != odd);
+    case!(3: pj, pk, pm, @ xy, != odd);
+    case!(3: pj, pk, pm, @ zx, != odd);
+    case!(3: pj, pk, pm, @ yz, != odd);
+    case!(3: pi, pk, pm, @ yx, != odd);
+    case!(2: pk, pm, @ x, != odd);
+    case!(2: pm, pk, @ y, != odd);
+    case!(3: pi, pk, pm, @ xz, != odd);
+    case!(2: pk, pm, @ z, != odd);
+    // case!(3: pi, pk, pm, @ zy, != odd); Impossible
+    case!(3: pi, pj, pm, @ xy, != odd);
+    case!(2: pm, pj, @ x, != odd);
+    case!(2: pj, pm, @ y, != odd);
+    case!(2: pi, pm, @ x, != odd);
     !odd
 }
 
@@ -408,7 +480,7 @@ mod tests {
             }
         };
 
-        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ m2) => {
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ xy m2) => {
             let val = fe::in_circle($pi, $pj, $pk, $pl);
             if val != 0.0 {
                 return $arr;
@@ -429,7 +501,7 @@ mod tests {
             }
         };
 
-        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ m3) => {
+        ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ xyz m3) => {
             let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
             if val != 0.0 {
                 return $arr;
@@ -504,7 +576,7 @@ mod tests {
         let pk = index_fn(list, k);
         let pl = index_fn(list, l);
 
-        case!([4, 4, 4, 4] => pi, pj, pk, pl, @ m2);
+        case!([4, 4, 4, 4] => pi, pj, pk, pl, @ xy m2);
         case!([3, 4, 4, 4] => pj, pk, pl, @ xy);
         case!([2, 4, 4, 4] => pj, pl, pk, @ xy m2);
         case!([1, 4, 4, 4] => pj, pk, pl, @ yx m2);
