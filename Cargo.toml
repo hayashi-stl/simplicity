@@ -1,14 +1,19 @@
 [package]
-name = "simulation_of_simplicity"
+name = "simplicity"
 version = "0.1.0"
 authors = ["Joshua Ani <josh4820@gmail.com>"]
 edition = "2018"
+description = "Implementation of simulation of simplicity (https://arxiv.org/pdf/math/9410209.pdf)"
+license = "MIT"
+keywords = ["geometry"]
+categories = ["mathematics"]
+repository = "https://github.com/josh65536/simplicity"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+robust-geo = "0.1.2"
 nalgebra = "0.24.0"
-float_expansion = { git = "https://github.com/josh65536/float_expansion", branch = "main" }
 
 [dev-dependencies]
 test-case = "1.1.0"

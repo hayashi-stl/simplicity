@@ -1,4 +1,4 @@
-//! Implementation of [Simulation of Simplicity](https://arxiv.org/pdf/math/9410209.pdf)
+//! Implementation of [Simulation of Simplicity by Edelsbrunner and Mücke](https://arxiv.org/pdf/math/9410209.pdf)
 //!
 //! Simulation of simplicity is a technique for ignoring
 //! degeneracies when calculating geometric predicates,
@@ -37,7 +37,7 @@
 //! # Usage
 //!
 //! ```rust
-//! use simulation_of_simplicity::{nalgebra, orient_2d};
+//! use simplicity::{nalgebra, orient_2d};
 //! use nalgebra::Vector2;
 //!
 //! let points = vec![
@@ -67,7 +67,7 @@
 //! used for arbitrary lists without having to implement `Index` for them:
 //!
 //! ```rust
-//! # use simulation_of_simplicity::{nalgebra, orient_2d};
+//! # use simplicity::{nalgebra, orient_2d};
 //! # use nalgebra::Vector2;
 //! let points = vec![
 //!     (Vector2::new(0.0, 0.0), 0.8),
@@ -78,7 +78,7 @@
 //! let result = orient_2d(&points, |l, i| l[i].0, 0, 1, 2);
 //! ```
 
-use float_expansion as fe;
+use robust_geo as rg;
 pub use nalgebra;
 
 use nalgebra::{Vector1, Vector2, Vector3};
@@ -124,7 +124,7 @@ sorted_fn!(sorted_5, 5);
 /// # Example
 ///
 /// ```
-/// # use simulation_of_simplicity::{nalgebra, orient_1d};
+/// # use simplicity::{nalgebra, orient_1d};
 /// # use nalgebra::Vector1;
 /// let points = vec![0.0, 1.0, 2.0, 1.0];
 /// let positive = orient_1d(&points, |l, i| Vector1::new(l[i]), 1, 3);
@@ -144,14 +144,14 @@ pub fn orient_1d<T: ?Sized>(
 
 macro_rules! case {
     (2: $pi:ident, $pj:ident, @ m2, != $odd:expr) => {
-        let val = fe::magnitude_cmp_2d($pi, $pj);
+        let val = rg::magnitude_cmp_2d($pi, $pj);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (2: $pi:ident, $pj:ident, @ m3, != $odd:expr) => {
-        let val = fe::magnitude_cmp_3d($pi, $pj);
+        let val = rg::magnitude_cmp_3d($pi, $pj);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
@@ -164,49 +164,49 @@ macro_rules! case {
     };
 
     (3: $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m2, != $odd:expr) => {
-        let val = fe::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+        let val = rg::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (3: $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m3, != $odd:expr) => {
-        let val = fe::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+        let val = rg::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (3: $pi:ident, $pj:ident, $pk:ident, $(@ $swiz:ident,)? != $odd:expr) => {
-        let val = fe::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
+        let val = rg::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ xy m2, != $odd:expr) => {
-        let val = fe::in_circle($pi, $pj, $pk, $pl);
+        let val = rg::in_circle($pi, $pj, $pk, $pl);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ $swiz:ident m3, != $odd:expr) => {
-        let val = fe::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
+        let val = rg::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (4: $pi:ident, $pj:ident, $pk:ident, $pl:ident, $(@ $swiz:ident,)? != $odd:expr) => {
-        let val = fe::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
+        let val = rg::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
     };
 
     (5: $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ xyz m3, != $odd:expr) => {
-        let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
+        let val = rg::in_sphere($pi, $pj, $pk, $pl, $pm);
         if val != 0.0 {
             return (val > 0.0) != $odd;
         }
@@ -224,7 +224,7 @@ macro_rules! case {
 /// # Example
 ///
 /// ```
-/// # use simulation_of_simplicity::{nalgebra, orient_2d};
+/// # use simplicity::{nalgebra, orient_2d};
 /// # use nalgebra::Vector2;
 /// let points = vec![
 ///     Vector2::new(0.0, 0.0),
@@ -266,7 +266,7 @@ pub fn orient_2d<T: ?Sized>(
 /// # Example
 ///
 /// ```
-/// # use simulation_of_simplicity::{nalgebra, orient_3d};
+/// # use simplicity::{nalgebra, orient_3d};
 /// # use nalgebra::Vector3;
 /// let points = vec![
 ///     Vector3::new(0.0, 0.0, 0.0),
@@ -323,7 +323,7 @@ pub fn orient_3d<T: ?Sized>(
 /// # Example
 ///
 /// ```
-/// # use simulation_of_simplicity::{nalgebra, in_circle};
+/// # use simplicity::{nalgebra, in_circle};
 /// # use nalgebra::Vector2;
 /// let points = vec![
 ///     Vector2::new(0.0, 2.0),
@@ -380,7 +380,7 @@ pub fn in_circle<T: ?Sized>(
 /// # Example
 ///
 /// ```
-/// # use simulation_of_simplicity::{nalgebra, in_sphere};
+/// # use simplicity::{nalgebra, in_sphere};
 /// # use nalgebra::Vector3;
 /// let points = vec![
 ///     Vector3::new(0.0, 0.0, 0.0),
@@ -473,14 +473,14 @@ mod tests {
     // Test-specific to determine case reached
     macro_rules! case {
         ($arr:expr => $pi:ident, $pj:ident, @ m2) => {
-            let val = fe::magnitude_cmp_2d($pi, $pj);
+            let val = rg::magnitude_cmp_2d($pi, $pj);
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, @ m3) => {
-            let val = fe::magnitude_cmp_3d($pi, $pj);
+            let val = rg::magnitude_cmp_3d($pi, $pj);
             if val != 0.0 {
                 return $arr;
             }
@@ -493,49 +493,49 @@ mod tests {
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m2) => {
-            let val = fe::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+            let val = rg::sign_det_x_x2y2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, @ $swiz:ident m3) => {
-            let val = fe::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
+            let val = rg::sign_det_x_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz());
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident $(, @ $swiz:ident)?) => {
-            let val = fe::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
+            let val = rg::orient_2d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?);
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ xy m2) => {
-            let val = fe::in_circle($pi, $pj, $pk, $pl);
+            let val = rg::in_circle($pi, $pj, $pk, $pl);
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, @ $swiz:ident m3) => {
-            let val = fe::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
+            let val = rg::sign_det_x_y_x2y2z2($pi.$swiz(), $pj.$swiz(), $pk.$swiz(), $pl.$swiz());
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident $(, @ $swiz:ident)?) => {
-            let val = fe::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
+            let val = rg::orient_3d($pi$(.$swiz())?, $pj$(.$swiz())?, $pk$(.$swiz())?, $pl$(.$swiz())?);
             if val != 0.0 {
                 return $arr;
             }
         };
 
         ($arr:expr => $pi:ident, $pj:ident, $pk:ident, $pl:ident, $pm:ident, @ xyz m3) => {
-            let val = fe::in_sphere($pi, $pj, $pk, $pl, $pm);
+            let val = rg::in_sphere($pi, $pj, $pk, $pl, $pm);
             if val != 0.0 {
                 return $arr;
             }
