@@ -92,7 +92,7 @@ macro_rules! sorted_fn {
         /// and returns the sorted array,
         /// along with the parity of the permutation;
         /// `false` if even and `true` if odd.
-        fn $name(mut arr: [usize; $n]) -> ([usize; $n], bool) {
+        fn $name<Idx: Ord + Copy>(mut arr: [Idx; $n]) -> ([Idx; $n], bool) {
             let mut num_swaps = 0;
 
             for i in 1..$n {
@@ -131,11 +131,11 @@ sorted_fn!(sorted_5, 5);
 /// // points[1] gets perturbed farther to the right than points[3]
 /// assert!(positive);
 /// ```
-pub fn orient_1d<T: ?Sized>(
+pub fn orient_1d<T: ?Sized, Idx: Ord + Copy>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec1,
-    i: usize,
-    j: usize,
+    index_fn: impl Fn(&T, Idx) -> Vec1,
+    i: Idx,
+    j: Idx,
 ) -> bool {
     let pi = index_fn(list, i);
     let pj = index_fn(list, j);
@@ -237,12 +237,12 @@ macro_rules! case {
 /// let positive = orient_2d(&points, |l, i| l[i], 0, 3, 2);
 /// assert!(!positive);
 /// ```
-pub fn orient_2d<T: ?Sized>(
+pub fn orient_2d<T: ?Sized, Idx: Ord + Copy>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec2,
-    i: usize,
-    j: usize,
-    k: usize,
+    index_fn: impl Fn(&T, Idx) -> Vec2,
+    i: Idx,
+    j: Idx,
+    k: Idx,
 ) -> bool {
     let ([i, j, k], odd) = sorted_3([i, j, k]);
     let pi = index_fn(list, i);
@@ -283,13 +283,13 @@ pub fn orient_2d<T: ?Sized>(
 /// let positive = orient_3d(&points, |l, i| l[i], 7, 4, 0, 2);
 /// assert!(positive);
 /// ```
-pub fn orient_3d<T: ?Sized>(
+pub fn orient_3d<T: ?Sized, Idx: Ord + Copy>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec3,
-    i: usize,
-    j: usize,
-    k: usize,
-    l: usize,
+    index_fn: impl Fn(&T, Idx) -> Vec3,
+    i: Idx,
+    j: Idx,
+    k: Idx,
+    l: Idx,
 ) -> bool {
     let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
     let pi = index_fn(list, i);
@@ -337,13 +337,13 @@ pub fn orient_3d<T: ?Sized>(
 /// let inside = in_circle(&points, |l, i| l[i], 2, 3, 1, 4);
 /// assert!(!inside);
 /// ```
-pub fn in_circle<T: ?Sized>(
+pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec2 + Clone,
-    i: usize,
-    j: usize,
-    k: usize,
-    l: usize,
+    index_fn: impl Fn(&T, Idx) -> Vec2 + Clone,
+    i: Idx,
+    j: Idx,
+    k: Idx,
+    l: Idx,
 ) -> bool {
     let flip = !orient_2d(list, index_fn.clone(), i, j, k);
     let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
@@ -394,14 +394,14 @@ pub fn in_circle<T: ?Sized>(
 /// let inside = in_sphere(&points, |l, i| l[i], 2, 3, 1, 4, 0);
 /// assert!(!inside);
 /// ```
-pub fn in_sphere<T: ?Sized>(
+pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
     list: &T,
-    index_fn: impl Fn(&T, usize) -> Vec3 + Clone,
-    i: usize,
-    j: usize,
-    k: usize,
-    l: usize,
-    m: usize,
+    index_fn: impl Fn(&T, Idx) -> Vec3 + Clone,
+    i: Idx,
+    j: Idx,
+    k: Idx,
+    l: Idx,
+    m: Idx,
 ) -> bool {
     let flip = !orient_3d(list, index_fn.clone(), i, j, k, l);
     let ([i, j, k, l, m], odd) = sorted_5([i, j, k, l, m]);
@@ -464,6 +464,37 @@ pub fn in_sphere<T: ?Sized>(
     case!(2: pi, pm, @ x, != odd);
     !odd
 }
+
+/// Returns whether the last point is closer to the second point
+/// than it is to the first point.
+///
+/// Takes a list of all the points in consideration, an indexing function,
+/// and 3 indexes to the points to calculate the distance-compare-3d of.
+//pub fn distance_cmp_3d<T: ?Sized>(
+//    list: &T,
+//    index_fn: impl Fn(&T, usize) -> Vec3 + Clone,
+//    i: usize,
+//    j: usize,
+//    k: usize,
+//) -> bool {
+//    let pi = index_fn(list, i);
+//    let pj = index_fn(list, j);
+//    let pk = index_fn(list, k);
+//
+//    let val = rg::distance_cmp_3d(pi, pj, pk);
+//    if val != 0.0 {
+//        return val > 0.0;
+//    }
+//
+//    const DUMMY: bool = false;
+//    if k < i && k < j {
+//        case!(2: pj, pi, @ z, != DUMMY);
+//        case!(2: pj, pi, @ y, != DUMMY);
+//        case!(2: pj, pi, @ x, != DUMMY);
+//    }
+//
+//    return i < j
+//}
 
 #[cfg(test)]
 mod tests {
