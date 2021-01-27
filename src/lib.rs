@@ -319,6 +319,11 @@ pub fn orient_3d<T: ?Sized, Idx: Ord + Copy>(
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 4 indexes to the points to calculate the in-circle of.
+/// 
+/// # Warning
+/// As this currently uses the cheap trick from the paper of perturbing the lifted point
+/// (p.x, p.y, p.x^2 + p.y^2) for each point p,
+/// this function is incompatible with orient_2d.
 ///
 /// # Example
 ///
@@ -376,6 +381,11 @@ pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 5 indexes to the points to calculate the in-sphere of.
+/// 
+/// # Warning
+/// As this currently uses the cheap trick from the paper of perturbing the lifted point
+/// (p.x, p.y, p.z, p.x^2 + p.y^2 + p.z^2) for each point p,
+/// this function is incompatible with orient_3d.
 ///
 /// # Example
 ///

@@ -1,6 +1,6 @@
 [package]
 name = "simplicity"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Joshua Ani <josh4820@gmail.com>"]
 edition = "2018"
 description = "Implementation of simulation of simplicity (https://arxiv.org/pdf/math/9410209.pdf)"
