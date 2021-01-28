@@ -1,0 +1,1 @@
+/home/joshua/rust/simplicity/simplicity_derive/target/package/simplicity_derive-0.1.0/target/debug/libsimplicity_derive.so: /home/joshua/rust/simplicity/simplicity_derive/target/package/simplicity_derive-0.1.0/src/lib.rs build.rs
