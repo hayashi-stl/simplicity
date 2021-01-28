@@ -475,11 +475,11 @@ pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
     !odd
 }
 
-/// Returns whether the last point is closer to the second point
-/// than it is to the first point.
-///
-/// Takes a list of all the points in consideration, an indexing function,
-/// and 3 indexes to the points to calculate the distance-compare-3d of.
+///// Returns whether the last point is closer to the second point
+///// than it is to the first point.
+/////
+///// Takes a list of all the points in consideration, an indexing function,
+///// and 3 indexes to the points to calculate the distance-compare-3d of.
 //pub fn distance_cmp_3d<T: ?Sized>(
 //    list: &T,
 //    index_fn: impl Fn(&T, usize) -> Vec3 + Clone,
@@ -505,6 +505,8 @@ pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
 //
 //    return i < j
 //}
+
+simplicity_derive::generate_in_hypersphere!(list, index_fn, i, j, k, l, m);
 
 #[cfg(test)]
 mod tests {

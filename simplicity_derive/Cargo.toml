@@ -1,0 +1,15 @@
+[package]
+name = "simplicity_derive"
+version = "0.1.0"
+authors = ["Joshua Ani <josh4820@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0", features = ["derive", "full", "fold"] }
+quote = "1.0"
+proc-macro2 = "1.0.24"
+itertools = "0.10.0"
+fnv = "1.0.7"

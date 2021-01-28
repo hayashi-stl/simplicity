@@ -14,6 +14,7 @@ repository = "https://github.com/josh65536/simplicity"
 [dependencies]
 robust-geo = "0.1.2"
 nalgebra = "0.24.0"
+simplicity_derive = { path = "simplicity_derive" }
 
 [dev-dependencies]
 test-case = "1.1.0"
