@@ -1,13 +1,16 @@
 extern crate proc_macro;
+#[macro_use]
+extern crate quote;
 
 use fnv::FnvHashMap;
 use proc_macro::TokenStream;
-use quote::quote;
 use syn::{Ident, Token};
 use syn::parse::{Parse, ParseStream, Result};
 use itertools::Itertools;
+use permutator::Combination;
 use std::{collections::HashSet, fmt::{self, Display, Formatter}};
 use std::iter::{once, repeat};
+use proc_macro2::TokenStream as TokenStream2;
 
 struct InHypersphere {
     /// The list to index on
@@ -49,7 +52,51 @@ impl Determinant {
     }
 
     fn nonzero(self, zero_dets: &mut HashSet<Determinant>) -> Option<Self> {
-        if zero_dets.contains(&self) { None } else { Some(self) }
+        if zero_dets.contains(&self) {
+            return None;
+        };
+
+        // Smaller determinants
+        for i in 1..self.cols.len() {
+            if self.rows.combination(i).any(|combo_r|
+                self.cols.combination(i).all(|combo_c|
+                    zero_dets.contains(&Determinant::new(combo_r.iter().copied().copied().collect(),
+                        combo_c.into_iter().copied().collect()))))
+            {
+                // Determinant is 0 because a whole row/rows of subdeterminants are 0
+                return None;
+            }
+        }
+
+        Some(self)
+    }
+
+    /// To be called after prepare_dets_for_cases
+    fn vector_tokens(&self, points: &[Ident]) -> TokenStream2 {
+        let dim = points.len() - 2;
+        let mut cols = self.cols.clone();
+
+        // Magnitude column; replace with missing coordinates
+        if cols[cols.len() - 1] == dim {
+            cols.pop();
+            cols.extend((0..dim).filter(|i| !self.cols.contains(i)));
+        }
+
+        let vector = format_ident!("Vector{}", cols.len());
+
+        self.rows.iter().map(|r| {
+            let point = &points[*r];
+            let mut coords = cols.iter().map(|c| {
+                quote! { #point[#c], }
+            }).collect::<Vec<_>>();
+
+            if coords.len() > 1 {
+                let coords = coords.into_iter().collect::<TokenStream2>();
+                quote! { nalgebra::#vector::new(#coords), }
+            } else {
+                coords.pop().unwrap()
+            }
+        }).collect()
     }
 
     fn to_grid(&self, indexes: &[Ident]) -> Vec<String> {
@@ -72,9 +119,9 @@ impl Determinant {
             lines.push(line + "│");
         }
 
-        let pad = repeat(" ").take(lines[0].chars().count() - 2).collect::<String>();
-        lines.insert(0, format!("│{}│", pad));
-        lines.push(format!("│{}│", pad));
+        //let pad = repeat(" ").take(lines[0].chars().count() - 2).collect::<String>();
+        //lines.insert(0, format!("│{}│", pad));
+        //lines.push(format!("│{}│", pad));
         lines
     }
 }
@@ -136,12 +183,176 @@ impl TermSum {
         Self::default()
     }
 
-    fn without_zero_dets(mut self, zero_dets: &mut HashSet<Determinant>) -> Option<Self> {
+    fn without_zero_dets(mut self, dim: usize, zero_dets: &mut HashSet<Determinant>) -> Option<Self> {
         self.terms = self.terms.into_iter().flat_map(|t| t.nonzero(zero_dets)).collect::<Vec<_>>();
+
         if self.terms.len() == 1 && self.terms[0].var_mult.is_none() {
-            zero_dets.insert(self.terms[0].det.clone());
+            let det = &self.terms[0].det;
+            zero_dets.insert(det.clone());
+
+            // Special case: coordinates equal, so the magnitudes do as well.
+            if det.cols.len() == 1 && (0..dim).all(|i| 
+                zero_dets.contains(&Determinant::new(vec![det.rows[0]], vec![i])))
+            {
+                zero_dets.insert(Determinant::new(vec![det.rows[0]], vec![dim]));
+            }
         }
+
         if self.terms.is_empty() { None } else { Some(self) }
+    }
+
+    fn prepare_dets_for_cases(&mut self, dim: usize) {
+        for term in &mut self.terms {
+            // For convenience of including the last point
+            term.det.rows.push(dim + 1);
+
+            if term.const_mult < 0 {
+                term.const_mult *= -1;
+                let n = term.det.rows.len();
+                term.det.rows.swap(n - 2, n - 1);
+            }
+        }
+    }
+
+    fn case(mut self, points: &[Ident]) -> TokenStream2 {
+        let coords = "xyzw".chars().collect::<Vec<_>>();
+        let dim = points.len() - 2;
+        self.prepare_dets_for_cases(dim);
+
+        if self.terms.len() == 1 && self.terms[0].det.cols.len() == dim + 1 {
+            assert_eq!(self.terms[0].const_mult, 1);
+            assert_eq!(self.terms[0].var_mult, None);
+
+            if dim == 2 {
+                let [i, j, k, l] = [&points[0], &points[1], &points[2], &points[3]];
+                quote! {
+                    let val = rg::in_circle(#i, #j, #k, #l);
+                    if val != 0.0 {
+                        return (val > 0.0) != odd;
+                    }
+                }
+            } else if dim == 3 {
+                let [i, j, k, l, m] = [&points[0], &points[1], &points[2], &points[3], &points[4]];
+                quote! {
+                    let val = rg::in_sphere(#i, #j, #k, #l, #m);
+                    if val != 0.0 {
+                        return (val > 0.0) != odd;
+                    }
+                }
+            } else {
+                panic!("Unsupported # of dimensions: {}", dim)
+            }
+        } else if self.terms.len() == 1 && self.terms[0].det.cols.last() == Some(&dim) {
+            assert_eq!(self.terms[0].const_mult, 1);
+            assert_eq!(self.terms[0].var_mult, None);
+
+            let det = self.terms[0].det.vector_tokens(points);
+            let func = if self.terms[0].det.cols.len() == 1 {
+                format_ident!("magnitude_cmp_{}d", dim)
+            } else {
+                format_ident!(
+                    "sign_det_{}{}",
+                    coords[..self.terms[0].det.cols.len() - 1].iter().map(|c| c.to_string() + "_").join(""),
+                    coords[..dim].iter().map(|c| c.to_string() + "2").join(""),
+                )
+            };
+            quote! {
+                let val = rg::#func(#det);
+                if val != 0.0 {
+                    return (val > 0.0) != odd;
+                }
+            }
+        } else if self.terms.len() == 1 {
+            assert_eq!(self.terms[0].const_mult, 1);
+            assert_eq!(self.terms[0].var_mult, None);
+            
+            if self.terms[0].det.cols.len() == 0 {
+                quote! { !odd }
+            } else if self.terms[0].det.cols.len() == 1 {
+                let coord = self.terms[0].det.cols[0];
+                let p1 = &points[self.terms[0].det.rows[0]];
+                let p2 = &points[self.terms[0].det.rows[1]];
+                quote! {
+                    if #p1[#coord] != #p2[#coord] {
+                        return (#p1[#coord] > #p2[#coord]) != odd;
+                    }
+                }
+            } else {
+                let det = self.terms[0].det.vector_tokens(points);
+                let func = format_ident!("orient_{}d", self.terms[0].det.cols.len());
+                quote! {
+                    let val = rg::#func(#det);
+                    if val != 0.0 {
+                        return (val > 0.0) != odd;
+                    }
+                }
+            }
+        } else if self.terms.len() == 2 && self.terms[0].var_mult.is_none() {
+            assert_eq!(self.terms[0].const_mult, 1);
+            assert_eq!(*self.terms[0].det.cols.last().unwrap(), dim);
+            assert_eq!(self.terms[1].const_mult, 2);
+            assert!(self.terms[1].var_mult.is_some());
+            assert_ne!(*self.terms[1].det.cols.last().unwrap(), dim);
+
+            let det1 = self.terms[0].det.vector_tokens(points);
+            let det2 = self.terms[1].det.vector_tokens(points);
+            let mult = &points[self.terms[1].var_mult.unwrap()[0]];
+            let mult_coord = self.terms[1].var_mult.unwrap()[1];
+            let func = format_ident!(
+                "sign_det_{}{}_plus_2x_det_{}",
+                coords[..self.terms[0].det.cols.len() - 1].iter().map(|c| c.to_string() + "_").join(""),
+                coords[..dim].iter().map(|c| c.to_string() + "2").join(""),
+                coords[..self.terms[1].det.cols.len()].iter().join("_"),
+            );
+            quote! { 
+                let val = rg::#func(#det1 #mult[#mult_coord], #det2);
+                if val != 0.0 {
+                    return (val > 0.0) != odd;
+                }
+            }
+        } else if self.terms.len() == 2 {
+            assert_eq!(self.terms[0].const_mult, 2);
+            assert_ne!(self.terms[0].det.cols.last(), Some(&dim));
+            assert_eq!(self.terms[1].const_mult, 2);
+            assert!(self.terms[1].var_mult.is_some());
+            assert_eq!(self.terms[0].det, self.terms[1].det);
+
+            let mult1 = &points[self.terms[0].var_mult.unwrap()[0]];
+            let mult1_coord = self.terms[0].var_mult.unwrap()[1];
+            let mult2 = &points[self.terms[1].var_mult.unwrap()[0]];
+            let mult2_coord = self.terms[1].var_mult.unwrap()[1];
+            
+            let inner = if self.terms[0].det.cols.len() == 0 {
+                quote! { return negate == odd; }
+            } else if self.terms[0].det.cols.len() == 1 {
+                let coord = self.terms[0].det.cols[0];
+                let p1 = &points[self.terms[0].det.rows[0]];
+                let p2 = &points[self.terms[0].det.rows[1]];
+                quote! {
+                    if #p1[#coord] != #p2[#coord] {
+                        return (#p1[#coord] > #p2[#coord]) != (negate != odd);
+                    }
+                }
+            } else {
+                let det = self.terms[0].det.vector_tokens(points);
+                let func = format_ident!("orient_{}d", self.terms[0].det.cols.len());
+                quote! {
+                    let val = rg::#func(#det);
+                    if val != 0.0 {
+                        return (val > 0.0) != (negate != odd);
+                    }
+                }
+            };
+
+            quote! {
+                if #mult1[#mult1_coord] != -#mult2[#mult2_coord] {
+                    let negate = #mult1[#mult1_coord] < -#mult2[#mult2_coord];
+                    #inner
+                }
+            }
+        } else {
+            panic!("Unsupported determinant: {}", self.to_grid(points).join("\n"))
+        }
     }
 
     fn to_grid(&self, indexes: &[Ident]) -> Vec<String> {
@@ -308,40 +519,67 @@ fn term_sums(dim: usize) -> Vec<(EFactor, TermSum)> {
     sums
 }
 
+fn fn_body(h: InHypersphere, sums: Vec<(EFactor, TermSum)>) -> TokenStream2 {
+    let list = h.list;
+    let index_fn = h.index_fn;
+    let dim = h.indexes.len() - 2;
+
+    let orient = format_ident!("orient_{}d", dim);
+    let sorted = format_ident!("sorted_{}", h.indexes.len());
+    let index_short_seq = h.indexes[..h.indexes.len() - 1].iter().map(|index| quote! {#index,})
+        .collect::<TokenStream2>();
+    let index_seq = h.indexes.iter().map(|index| quote!{#index,}).collect::<TokenStream2>();
+
+    let points = h.indexes.iter().map(|index| format_ident!("p{}", index)).collect::<Vec<_>>();
+    let indexing_seq = h.indexes.iter().zip(points.iter()).map(|(index, point)| quote! {
+        let #point = #index_fn(#list, #index);
+    }).collect::<TokenStream2>();
+
+    let mut zero_dets = HashSet::new();
+    let cases = sums.into_iter()
+        .flat_map(|(e, sum)| sum.without_zero_dets(dim, &mut zero_dets).map(|sum| (e, sum)))
+        .map(|(_, sum)| sum.case(&points))
+        .collect::<TokenStream2>();
+
+    let tokens = quote! { 
+        let flip = !#orient(#list, #index_fn.clone(), #index_short_seq);
+        let ([#index_seq], odd) = #sorted([#index_seq]);
+        let odd = odd != flip;
+
+        #indexing_seq
+
+        #cases
+    };
+
+    tokens
+}
+
 #[proc_macro]
 pub fn generate_in_hypersphere(input: TokenStream) -> TokenStream {
     let h = syn::parse_macro_input!(input as InHypersphere);
 
-    let msg = format!(
-        concat!(
-            "Generating the body of an in-hypersphere fn with\n",
-            "list `{}`,\n",
-            "index function `{}`, and\n",
-            "{} indexes.\n",
-        ),
-        h.list, h.index_fn, h.indexes.len()
-    );
-
     let sums = term_sums(h.indexes.len() - 2);
-    eprintln!("Sum count: {}", sums.len());
+    //let mut msg = "Cases:\n```".to_owned();
 
-    let mut zero_dets = HashSet::new();
-    for (e, sum) in &sums {
-        eprintln!("{}:", e.to_repr(&h.indexes));
+    //let mut zero_dets = HashSet::new();
+    //for (e, sum) in &sums {
+    //    msg += &format!("{}:\n", e.to_repr(&h.indexes));
 
-        if let Some(sum) = sum.clone().without_zero_dets(&mut zero_dets) {
-            eprintln!("{}", sum.to_grid(&h.indexes).into_iter().join("\n"));
-        } else {
-            eprintln!("Impossible!");
-        }
-        eprintln!();
-    }
+    //    if let Some(sum) = sum.clone().without_zero_dets(h.indexes.len() - 2, &mut zero_dets) {
+    //        msg += &format!("{}\n", sum.to_grid(&h.indexes).into_iter().join("\n"));
+    //    } else {
+    //        msg += "Impossible!\n";
+    //    }
+    //    msg += "\n";
+    //}
+    //msg += "```";
 
-    let stream = msg.split('\n').map(|line| quote! {
-        #[doc = #line]
-    }).chain(once(quote! {
-        fn __test_macro() {}
-    })).collect::<proc_macro2::TokenStream>();
+    //let ident = quote::format_ident!("__test_macro_{}", h.indexes.len() - 2);
+    //let stream = msg.split('\n').map(|line| quote! {
+    //    #[doc = #line]
+    //}).chain(once(quote! {
+    //    pub fn #ident() {}
+    //})).collect::<TokenStream2>();
 
-    TokenStream::from(stream)
+    TokenStream::from(fn_body(h, sums))
 }

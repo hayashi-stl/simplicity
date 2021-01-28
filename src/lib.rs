@@ -5,7 +5,7 @@
 //! such as the orientation of one point with respect to a list of points.
 //! Each point **p**\_ *i* is perturbed by some polynomial
 //! in ε, a sufficiently small positive number.
-//! Specifically, coordinate *p\_(i,j)* is perturbed by ε^(2^(*d*\**i* - *j*)),
+//! Specifically, coordinate *p\_(i,j)* is perturbed by ε^(3^(*d*\**i* - *j*)),
 //! where *d* is more than the number of dimensions.
 //!
 //! # Predicates
@@ -319,11 +319,6 @@ pub fn orient_3d<T: ?Sized, Idx: Ord + Copy>(
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 4 indexes to the points to calculate the in-circle of.
-/// 
-/// # Warning
-/// As this currently uses the cheap trick from the paper of perturbing the lifted point
-/// (p.x, p.y, p.x^2 + p.y^2) for each point p,
-/// this function is incompatible with orient_2d.
 ///
 /// # Example
 ///
@@ -350,30 +345,31 @@ pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
     k: Idx,
     l: Idx,
 ) -> bool {
-    let flip = !orient_2d(list, index_fn.clone(), i, j, k);
-    let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
-    let odd = odd != flip;
+    simplicity_derive::generate_in_hypersphere!{list, index_fn, i, j, k, l}
+    // let flip = !orient_2d(list, index_fn.clone(), i, j, k);
+    // let ([i, j, k, l], odd) = sorted_4([i, j, k, l]);
+    // let odd = odd != flip;
 
-    let pi = index_fn(list, i);
-    let pj = index_fn(list, j);
-    let pk = index_fn(list, k);
-    let pl = index_fn(list, l);
+    // let pi = index_fn(list, i);
+    // let pj = index_fn(list, j);
+    // let pk = index_fn(list, k);
+    // let pl = index_fn(list, l);
 
-    case!(4: pi, pj, pk, pl, @ xy m2, != odd);
-    case!(3: pj, pk, pl, @ xy, != odd);
-    case!(3: pj, pl, pk, @ xy m2, != odd);
-    case!(3: pj, pk, pl, @ yx m2, != odd);
-    case!(3: pi, pk, pl, @ yx, != odd);
-    case!(2: pk, pl, @ x, != odd);
-    case!(2: pl, pk, @ y, != odd);
-    // case!(3: pi, pk, pl, @ xy m2, != odd); Impossible
-    // case!(2: pk, pl, @ m2, != odd); Impossible
-    // case!(3: pi, pk, pl, @ zy, != odd); Impossible
-    case!(3: pi, pj, pl, @ xy, != odd);
-    case!(2: pl, pj, @ x, != odd);
-    case!(2: pj, pl, @ y, != odd);
-    case!(2: pi, pl, @ x, != odd);
-    !odd
+    // case!(4: pi, pj, pk, pl, @ xy m2, != odd);
+    // case!(3: pj, pk, pl, @ xy, != odd);
+    // case!(3: pj, pl, pk, @ xy m2, != odd);
+    // case!(3: pj, pk, pl, @ yx m2, != odd);
+    // case!(3: pi, pk, pl, @ yx, != odd);
+    // case!(2: pk, pl, @ x, != odd);
+    // case!(2: pl, pk, @ y, != odd);
+    // // case!(3: pi, pk, pl, @ xy m2, != odd); Impossible
+    // // case!(2: pk, pl, @ m2, != odd); Impossible
+    // // case!(3: pi, pk, pl, @ zy, != odd); Impossible
+    // case!(3: pi, pj, pl, @ xy, != odd);
+    // case!(2: pl, pj, @ x, != odd);
+    // case!(2: pj, pl, @ y, != odd);
+    // case!(2: pi, pl, @ x, != odd);
+    // !odd
 }
 
 /// Returns whether the last point is inside the sphere that goes through
@@ -381,11 +377,6 @@ pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 5 indexes to the points to calculate the in-sphere of.
-/// 
-/// # Warning
-/// As this currently uses the cheap trick from the paper of perturbing the lifted point
-/// (p.x, p.y, p.z, p.x^2 + p.y^2 + p.z^2) for each point p,
-/// this function is incompatible with orient_3d.
 ///
 /// # Example
 ///
@@ -413,66 +404,67 @@ pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
     l: Idx,
     m: Idx,
 ) -> bool {
-    let flip = !orient_3d(list, index_fn.clone(), i, j, k, l);
-    let ([i, j, k, l, m], odd) = sorted_5([i, j, k, l, m]);
-    let odd = odd != flip;
+    simplicity_derive::generate_in_hypersphere!{list, index_fn, i, j, k, l, m}
+    // let flip = !orient_3d(list, index_fn.clone(), i, j, k, l);
+    // let ([i, j, k, l, m], odd) = sorted_5([i, j, k, l, m]);
+    // let odd = odd != flip;
 
-    let pi = index_fn(list, i);
-    let pj = index_fn(list, j);
-    let pk = index_fn(list, k);
-    let pl = index_fn(list, l);
-    let pm = index_fn(list, m);
+    // let pi = index_fn(list, i);
+    // let pj = index_fn(list, j);
+    // let pk = index_fn(list, k);
+    // let pl = index_fn(list, l);
+    // let pm = index_fn(list, m);
 
-    case!(5: pi, pj, pk, pl, pm, @ xyz m3, != odd);
-    case!(4: pj, pk, pm, pl, != odd);
-    case!(4: pj, pk, pl, pm, @ xyz m3, != odd);
-    case!(4: pj, pk, pl, pm, @ zxy m3, != odd);
-    case!(4: pj, pk, pl, pm, @ yzx m3, != odd);
-    case!(4: pi, pk, pl, pm, != odd);
-    case!(3: pk, pl, pm, @ xy, != odd);
-    case!(3: pk, pl, pm, @ zx, != odd);
-    case!(3: pk, pl, pm, @ yz, != odd);
-    case!(4: pi, pk, pl, pm, @ yxz m3, != odd);
-    case!(3: pk, pl, pm, @ xyz m3, != odd);
-    case!(3: pk, pm, pl, @ yzx m3, != odd);
-    case!(4: pi, pk, pl, pm, @ xzy m3, != odd);
-    case!(3: pk, pl, pm, @ zxy m3, != odd);
-    case!(4: pi, pk, pl, pm, @ zyx m3, != odd);
-    case!(4: pi, pj, pm, pl, != odd);
-    case!(3: pj, pl, pm, @ yx, != odd);
-    case!(3: pj, pl, pm, @ xz, != odd);
-    case!(3: pj, pl, pm, @ zy, != odd);
-    case!(3: pi, pl, pm, @ xy, != odd);
-    case!(2: pm, pl, @ x, != odd);
-    case!(2: pl, pm, @ y, != odd);
-    case!(3: pi, pl, pm, @ zx, != odd);
-    case!(2: pm, pl, @ z, != odd);
-    case!(3: pi, pl, pm, @ yz, != odd);
-    case!(4: pi, pj, pl, pm, @ xyz m3, != odd);
-    case!(3: pj, pm, pl, @ xyz m3, != odd);
-    case!(3: pj, pl, pm, @ yzx m3, != odd);
-    case!(3: pi, pl, pm, @ xyz m3, != odd);
-    case!(2: pl, pm, @ m3, != odd);
-    case!(3: pi, pm, pl, @ yzx m3, != odd);
-    case!(4: pi, pj, pl, pm, @ zxy m3, != odd);
-    case!(3: pj, pm, pl, @ zxy m3, != odd);
-    case!(3: pi, pl, pm, @ zxy m3, != odd);
-    case!(4: pi, pj, pl, pm, @ yzx m3, != odd);
-    case!(4: pi, pj, pk, pm, != odd);
-    case!(3: pj, pk, pm, @ xy, != odd);
-    case!(3: pj, pk, pm, @ zx, != odd);
-    case!(3: pj, pk, pm, @ yz, != odd);
-    case!(3: pi, pk, pm, @ yx, != odd);
-    case!(2: pk, pm, @ x, != odd);
-    case!(2: pm, pk, @ y, != odd);
-    case!(3: pi, pk, pm, @ xz, != odd);
-    case!(2: pk, pm, @ z, != odd);
-    // case!(3: pi, pk, pm, @ zy, != odd); Impossible
-    case!(3: pi, pj, pm, @ xy, != odd);
-    case!(2: pm, pj, @ x, != odd);
-    case!(2: pj, pm, @ y, != odd);
-    case!(2: pi, pm, @ x, != odd);
-    !odd
+    // case!(5: pi, pj, pk, pl, pm, @ xyz m3, != odd);
+    // case!(4: pj, pk, pm, pl, != odd);
+    // case!(4: pj, pk, pl, pm, @ xyz m3, != odd);
+    // case!(4: pj, pk, pl, pm, @ zxy m3, != odd);
+    // case!(4: pj, pk, pl, pm, @ yzx m3, != odd);
+    // case!(4: pi, pk, pl, pm, != odd);
+    // case!(3: pk, pl, pm, @ xy, != odd);
+    // case!(3: pk, pl, pm, @ zx, != odd);
+    // case!(3: pk, pl, pm, @ yz, != odd);
+    // case!(4: pi, pk, pl, pm, @ yxz m3, != odd);
+    // case!(3: pk, pl, pm, @ xyz m3, != odd);
+    // case!(3: pk, pm, pl, @ yzx m3, != odd);
+    // case!(4: pi, pk, pl, pm, @ xzy m3, != odd);
+    // case!(3: pk, pl, pm, @ zxy m3, != odd);
+    // case!(4: pi, pk, pl, pm, @ zyx m3, != odd);
+    // case!(4: pi, pj, pm, pl, != odd);
+    // case!(3: pj, pl, pm, @ yx, != odd);
+    // case!(3: pj, pl, pm, @ xz, != odd);
+    // case!(3: pj, pl, pm, @ zy, != odd);
+    // case!(3: pi, pl, pm, @ xy, != odd);
+    // case!(2: pm, pl, @ x, != odd);
+    // case!(2: pl, pm, @ y, != odd);
+    // case!(3: pi, pl, pm, @ zx, != odd);
+    // case!(2: pm, pl, @ z, != odd);
+    // case!(3: pi, pl, pm, @ yz, != odd);
+    // case!(4: pi, pj, pl, pm, @ xyz m3, != odd);
+    // case!(3: pj, pm, pl, @ xyz m3, != odd);
+    // case!(3: pj, pl, pm, @ yzx m3, != odd);
+    // case!(3: pi, pl, pm, @ xyz m3, != odd);
+    // case!(2: pl, pm, @ m3, != odd);
+    // case!(3: pi, pm, pl, @ yzx m3, != odd);
+    // case!(4: pi, pj, pl, pm, @ zxy m3, != odd);
+    // case!(3: pj, pm, pl, @ zxy m3, != odd);
+    // case!(3: pi, pl, pm, @ zxy m3, != odd);
+    // case!(4: pi, pj, pl, pm, @ yzx m3, != odd);
+    // case!(4: pi, pj, pk, pm, != odd);
+    // case!(3: pj, pk, pm, @ xy, != odd);
+    // case!(3: pj, pk, pm, @ zx, != odd);
+    // case!(3: pj, pk, pm, @ yz, != odd);
+    // case!(3: pi, pk, pm, @ yx, != odd);
+    // case!(2: pk, pm, @ x, != odd);
+    // case!(2: pm, pk, @ y, != odd);
+    // case!(3: pi, pk, pm, @ xz, != odd);
+    // case!(2: pk, pm, @ z, != odd);
+    // // case!(3: pi, pk, pm, @ zy, != odd); Impossible
+    // case!(3: pi, pj, pm, @ xy, != odd);
+    // case!(2: pm, pj, @ x, != odd);
+    // case!(2: pj, pm, @ y, != odd);
+    // case!(2: pi, pm, @ x, != odd);
+    // !odd
 }
 
 ///// Returns whether the last point is closer to the second point
@@ -506,7 +498,6 @@ pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
 //    return i < j
 //}
 
-simplicity_derive::generate_in_hypersphere!(list, index_fn, i, j, k, l, m);
 
 #[cfg(test)]
 mod tests {
@@ -637,107 +628,6 @@ mod tests {
         [1, 2, 3, 4]
     }
 
-    pub fn in_circle_case<T: ?Sized>(
-        list: &T,
-        index_fn: impl Fn(&T, usize) -> Vec2 + Clone,
-        i: usize,
-        j: usize,
-        k: usize,
-        l: usize,
-    ) -> [usize; 4] {
-        let ([i, j, k, l], _) = sorted_4([i, j, k, l]);
-
-        let pi = index_fn(list, i);
-        let pj = index_fn(list, j);
-        let pk = index_fn(list, k);
-        let pl = index_fn(list, l);
-
-        case!([4, 4, 4, 4] => pi, pj, pk, pl, @ xy m2);
-        case!([3, 4, 4, 4] => pj, pk, pl, @ xy);
-        case!([2, 4, 4, 4] => pj, pl, pk, @ xy m2);
-        case!([1, 4, 4, 4] => pj, pk, pl, @ yx m2);
-        case!([3, 3, 4, 4] => pi, pk, pl, @ yx);
-        case!([2, 3, 4, 4] => pk, pl, @ x);
-        case!([1, 3, 4, 4] => pl, pk, @ y);
-        //case!([2, 2, 4, 4] => pi, pk, pl, @ xy m2); Impossible
-        //case!([1, 2, 4, 4] => pk, pl, @ m2); Impossible
-        //case!([1, 1, 4, 4] => pi, pl, pk, @ yx m2); Impossible
-        case!([3, 3, 3, 4] => pi, pj, pl, @ xy);
-        case!([2, 3, 3, 4] => pl, pj, @ x);
-        case!([1, 3, 3, 4] => pj, pl, @ y);
-        case!([2, 2, 3, 4] => pi, pl, @ x);
-        [1, 2, 3, 4]
-    }
-
-    pub fn in_sphere_case<T: ?Sized>(
-        list: &T,
-        index_fn: impl Fn(&T, usize) -> Vec3 + Clone,
-        i: usize,
-        j: usize,
-        k: usize,
-        l: usize,
-        m: usize,
-    ) -> [usize; 5] {
-        let ([i, j, k, l, m], _) = sorted_5([i, j, k, l, m]);
-
-        let pi = index_fn(list, i);
-        let pj = index_fn(list, j);
-        let pk = index_fn(list, k);
-        let pl = index_fn(list, l);
-        let pm = index_fn(list, m);
-
-        case!([5, 5, 5, 5, 5] => pi, pj, pk, pl, pm, @ xyz m3);
-        case!([4, 5, 5, 5, 5] => pj, pk, pm, pl);
-        case!([3, 5, 5, 5, 5] => pj, pk, pl, pm, @ xyz m3);
-        case!([2, 5, 5, 5, 5] => pj, pk, pl, pm, @ zxy m3);
-        case!([1, 5, 5, 5, 5] => pj, pk, pl, pm, @ yzx m3);
-        case!([4, 4, 5, 5, 5] => pi, pk, pl, pm);
-        case!([3, 4, 5, 5, 5] => pk, pl, pm, @ xy);
-        case!([2, 4, 5, 5, 5] => pk, pl, pm, @ zx);
-        case!([1, 4, 5, 5, 5] => pk, pl, pm, @ yz);
-        case!([3, 3, 5, 5, 5] => pi, pk, pl, pm, @ yxz m3);
-        case!([2, 3, 5, 5, 5] => pk, pl, pm, @ xyz m3);
-        case!([1, 3, 5, 5, 5] => pk, pm, pl, @ yzx m3);
-        case!([2, 2, 5, 5, 5] => pi, pk, pl, pm, @ xzy m3);
-        case!([1, 2, 5, 5, 5] => pk, pl, pm, @ zxy m3);
-        case!([1, 1, 5, 5, 5] => pi, pk, pl, pm, @ zyx m3);
-        case!([4, 4, 4, 5, 5] => pi, pj, pm, pl);
-        case!([3, 4, 4, 5, 5] => pj, pl, pm, @ yx);
-        case!([2, 4, 4, 5, 5] => pj, pl, pm, @ xz);
-        case!([1, 4, 4, 5, 5] => pj, pl, pm, @ zy);
-        case!([3, 3, 4, 5, 5] => pi, pl, pm, @ xy);
-        case!([2, 3, 4, 5, 5] => pm, pl, @ x);
-        case!([1, 3, 4, 5, 5] => pl, pm, @ y);
-        case!([2, 2, 4, 5, 5] => pi, pl, pm, @ zx);
-        case!([1, 2, 4, 5, 5] => pm, pl, @ z);
-        case!([1, 1, 4, 5, 5] => pi, pl, pm, @ yz);
-        case!([3, 3, 3, 5, 5] => pi, pj, pl, pm, @ xyz m3);
-        case!([2, 3, 3, 5, 5] => pj, pm, pl, @ xyz m3);
-        case!([1, 3, 3, 5, 5] => pj, pl, pm, @ yzx m3);
-        case!([2, 2, 3, 5, 5] => pi, pl, pm, @ xyz m3);
-        case!([1, 2, 3, 5, 5] => pl, pm, @ m3);
-        case!([1, 1, 3, 5, 5] => pi, pm, pl, @ yzx m3);
-        case!([2, 2, 2, 5, 5] => pi, pj, pl, pm, @ zxy m3);
-        case!([1, 2, 2, 5, 5] => pj, pm, pl, @ zxy m3);
-        case!([1, 1, 2, 5, 5] => pi, pl, pm, @ zxy m3);
-        case!([1, 1, 1, 5, 5] => pi, pj, pl, pm, @ yzx m3);
-        case!([4, 4, 4, 4, 5] => pi, pj, pk, pm);
-        case!([3, 4, 4, 4, 5] => pj, pk, pm, @ xy);
-        case!([2, 4, 4, 4, 5] => pj, pk, pm, @ zx);
-        case!([1, 4, 4, 4, 5] => pj, pk, pm, @ yz);
-        case!([3, 3, 4, 4, 5] => pi, pk, pm, @ yx);
-        case!([2, 3, 4, 4, 5] => pk, pm, @ x);
-        case!([1, 3, 4, 4, 5] => pm, pk, @ y);
-        case!([2, 2, 4, 4, 5] => pi, pk, pm, @ xz);
-        case!([1, 2, 4, 4, 5] => pk, pm, @ z);
-        // case!([1, 1, 4, 4, 5] => pi, pk, pm, @ zy); Impossible
-        case!([3, 3, 3, 4, 5] => pi, pj, pm, @ xy);
-        case!([2, 3, 3, 4, 5] => pm, pj, @ x);
-        case!([1, 3, 3, 4, 5] => pj, pm, @ y);
-        case!([2, 2, 3, 4, 5] => pi, pm, @ x);
-        [1, 2, 3, 4, 5]
-    }
-
     #[test]
     fn orient_1d_positive() {
         let points = vec![0.0, 1.0];
@@ -809,22 +699,9 @@ mod tests {
         assert_eq!(orient_3d_case(&points, |l, i| l[i], 0, 1, 2, 3), case);
     }
 
-    #[test_case([[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [1.0, 1.0]], [4,4,4,4] ; "General")]
-    #[test_case([[1.0, 0.0], [3.0, 1.0], [2.0, 3.0], [0.0, 2.0]], [3,4,4,4] ; "Cocircular")]
-    #[test_case([[0.0, 0.0], [1.0, 1.0], [3.0, 3.0], [2.0, 2.0]], [2,4,4,4] ; "Cocircular, pj pk pl collinear")]
-    #[test_case([[1.0, 0.0], [1.0, 5.0], [1.0, 1.0], [1.0, 4.0]], [1,4,4,4] ; "Cocircular, pj.x = pk.x = pl.x or 2 of pj pk pl equal")]
-    #[test_case([[1.0, 1.0], [0.0, 0.0], [0.0, 0.0], [2.0, 3.0]], [3,3,4,4] ; "2 of pj pk pl equal")]
-    #[test_case([[2.0, 2.0], [1.0, 1.0], [1.0, 1.0], [0.0, 0.0]], [2,3,4,4] ; "2 of pj pk pl equal, pi pk pl collinear")]
-    #[test_case([[1.0, 2.0], [1.0, 0.0], [1.0, 0.0], [1.0, 1.0]], [1,3,4,4] ; "2 of pj pk pl equal, pi.x = pk.x = pl.x or pk = pl")]
-    //                                                          , [2,2,4,4] ; "pk = pl and pi pk pl @ m2-x not collinear is impossible
-    //                                                          , [1,2,4,4] ; "pk = pl and pk.m2 != pl.m2 is impossible
-    //                                                          , [1,1,4,4] ; "pk = pl and pi pk pl @ y-m2 not collinear is impossible
-    #[test_case([[0.0, 0.0], [1.0, 0.0], [2.0, 1.0], [2.0, 1.0]], [3,3,3,4] ; "pk = pl")]
-    #[test_case([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [2.0, 2.0]], [2,3,3,4] ; "pk = pl, pi pj pk collinear")]
-    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 1.0], [0.0, 1.0]], [1,3,3,4] ; "pk = pl, pi.x = pj.x = pk.x or pj = pk")]
-    #[test_case([[1.0, 0.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]], [2,2,3,4] ; "pj = pk = pl")]
-    #[test_case([[0.0, 0.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]], [1,2,3,4] ; "pj = pk = pl, pi.x = pk.x")]
-    fn test_in_circle(points: [[f64; 2]; 4], case: [usize; 4]) {
+    #[test]
+    fn test_in_circle_general() {
+        let points = [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [1.0, 1.0]];
         let points = points
             .iter()
             .copied()
@@ -843,61 +720,37 @@ mod tests {
                 == (orient_2d(&points, |l, i| l[i], 0, 1, 3)
                     != orient_2d(&points, |l, i| l[i], 0, 1, 2))
         );
-        assert_eq!(in_circle_case(&points, |l, i| l[i], 0, 1, 2, 3), case);
     }
 
-    // Taking integers to shorten things
-    #[test_case([[0,0,0], [4,0,0], [0,4,0], [0,0,4], [1,1,1]], [5,5,5,5,5] ; "General")]
-    #[test_case([[0,0,0], [2,0,0], [2,2,2], [2,2,0], [0,2,2]], [4,5,5,5,5] ; "Cospherical")]
-    #[test_case([[0,0,0], [1,1,1], [2,2,2], [2,4,4], [2,3,3]], [3,5,5,5,5] ; "Cospherical, pj pk pl pm coplanar")]
-    #[test_case([[2,2,2], [0,0,2], [2,2,0], [0,0,1], [1,1,0]], [2,5,5,5,5] ; "Cospherical, pj pk pl pm coplanar, pj pk pl pm @ xy-m3 coplanar")]
-    #[test_case([[0,1,0], [0,2,0], [0,2,1], [0,1,2], [0,1,1]], [1,5,5,5,5] ; "Cospherical, pj pk pl pm coplanar, pj pk pl pm @ xy-m3 and zx-m3 coplanar")]
-    #[test_case([[0,0,0], [1,0,0], [1,0,0], [0,0,1], [0,1,0]], [4,4,5,5,5] ; "pj pk pl pm cocircular")]
-    #[test_case([[2,0,0], [2,0,0], [2,0,0], [2,1,0], [1,0,0]], [3,4,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar")]
-    #[test_case([[0,0,0], [0,0,0], [1,0,0], [0,0,0], [0,0,1]], [2,4,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm @ xy collinear")]
-    #[test_case([[0,0,0], [0,0,0], [0,0,0], [0,1,0], [0,0,1]], [1,4,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm @ xy and zx collinear")]
-    #[test_case([[2,0,2], [1,2,1], [1,0,1], [1,2,1], [1,1,1]], [3,3,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm collinear")]
-    #[test_case([[2,0,0], [2,0,1], [2,0,1], [0,0,1], [1,0,1]], [2,3,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm collinear, pi pk pl pm @ xy-m3 coplanar")]
-    #[test_case([[0,1,0], [0,1,1], [0,2,1], [0,0,1], [0,1,1]], [1,3,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm collinear, pi pk pl pm @ xy-m3 coplanar, pk pl pm @ x-m3 collinear")]
-    #[test_case([[0,0,2], [1,0,2], [1,0,0], [1,0,2], [1,0,1]], [2,2,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm collinear, pi pk pl pm @ xy-m3 coplanar, pk pl pm @ x-m3 and y-m3 collinear")]
-    #[test_case([[0,1,2], [0,2,1], [0,2,2], [0,2,0], [0,2,1]], [1,2,5,5,5] ; "pj pk pl pm cocircular, pi pk pl pm coplanar, pk pl pm collinear, pi pk pl pm @ xy-m3 and zx-m3 coplanar, pk pl pm @ x-m3 and y-m3 collinear")]
-    //                                                         [1,1,5,5,5] ; "2 of pk pl pm are equal and pi pk pl pm @ yz-m3 are not coplanar is impossible
-    #[test_case([[0,0,0], [1,0,0], [0,1,0], [0,1,0], [0,0,1]], [4,4,4,5,5] ; "2 of pk pl pm are equal")]
-    #[test_case([[0,2,0], [0,2,0], [1,2,0], [1,2,0], [0,1,0]], [3,4,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar")]
-    #[test_case([[0,0,0], [0,0,0], [1,0,0], [1,0,0], [0,0,1]], [2,4,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm @ xy collinear")]
-    #[test_case([[0,0,0], [0,0,0], [0,1,0], [0,0,1], [0,1,0]], [1,4,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm @ xy and zx collinear")]
-    #[test_case([[0,0,0], [1,0,0], [0,1,0], [1,0,0], [0,1,0]], [3,3,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm collinear")]
-    #[test_case([[0,0,0], [0,0,0], [0,0,0], [0,0,0], [1,0,0]], [2,3,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm collinear, pi pl pm @ xy collinear")]
-    #[test_case([[0,2,0], [0,2,0], [0,2,0], [0,2,0], [0,1,0]], [1,3,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm collinear, pi pl pm @ xy collinear, pl.x = pm.x")]
-    #[test_case([[0,0,0], [1,0,0], [1,0,0], [1,0,1], [1,0,0]], [2,2,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm collinear, pi pl pm @ xy collinear, pl.xy = pm.xy")]
-    #[test_case([[0,0,0], [0,0,0], [0,0,0], [0,0,0], [0,0,1]], [1,2,4,5,5] ; "2 of pk pl pm are equal, pi pj pl pm coplanar, pj pl pm collinear, pi pl pm @ xy and zx collinear, pl.xy = pm.xy")]
-    //                                                         [1,1,4,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [3,3,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [2,3,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,3,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [2,2,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,2,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,1,3,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [2,2,2,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,2,2,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,1,2,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    //                                                         [1,1,1,5,5] ; "pl = pm and some determinant involving pl and pm is not 0 is impossible
-    #[test_case([[0,0,0], [1,1,1], [0,1,0], [1,0,0], [1,0,0]], [4,4,4,4,5] ; "pl = pm")]
-    #[test_case([[0,0,0], [1,1,1], [3,4,5], [2,3,4], [2,3,4]], [3,4,4,4,5] ; "pl = pm, coplanar")]
-    #[test_case([[0,0,0], [1,1,1], [2,2,4], [3,3,5], [3,3,5]], [2,4,4,4,5] ; "pl = pm, coplanar, pj pk pl @ xy collinear")]
-    #[test_case([[1,0,0], [1,1,1], [1,4,2], [1,5,3], [1,5,3]], [1,4,4,4,5] ; "pl = pm, coplanar, pj pk pl @ xy and yz collinear")]
-    #[test_case([[0,0,0], [1,2,3], [2,3,4], [3,4,5], [3,4,5]], [3,3,4,4,5] ; "pl = pm, pj pk pl collinear")]
-    #[test_case([[0,0,0], [1,1,3], [3,3,5], [2,2,4], [2,2,4]], [2,3,4,4,5] ; "pl = pm, pj pk pl collinear, pi pk pl @ xy collinear")]
-    #[test_case([[0,0,0], [0,1,3], [0,2,4], [0,3,5], [0,3,5]], [1,3,4,4,5] ; "pl = pm, pj pk pl collinear, pi pk pl @ xy collinear, pk.x = pl.x")]
-    #[test_case([[1,0,0], [0,2,3], [0,2,5], [0,2,4], [0,2,4]], [2,2,4,4,5] ; "pl = pm, pj pk pl collinear, pi pk pl @ xy collinear, pk.xy = pl.xy")]
-    #[test_case([[0,0,0], [0,2,3], [0,2,4], [0,2,3], [0,2,3]], [1,2,4,4,5] ; "pl = pm, pj pk pl collinear, pi pk pl @ xy and zx collinear, pk.xy = pl.xy")]
-    //                                                       , [1,1,4,4,5] ; "pk = pl = pm and pi pk pl @ yz not collinear is impossible
-    #[test_case([[0,0,0], [1,0,0], [2,1,0], [2,1,0], [2,1,0]], [3,3,3,4,5] ; "pk = pl = pm")]
-    #[test_case([[0,0,0], [1,1,0], [2,2,0], [2,2,0], [2,2,0]], [2,3,3,4,5] ; "pk = pl = pm, pi pj pk @ xy collinear")]
-    #[test_case([[0,0,0], [0,2,0], [0,1,0], [0,1,0], [0,1,0]], [1,3,3,4,5] ; "pk = pl = pm, pi pj pk @ xy collinear, pj.x = pk.x")]
-    #[test_case([[1,0,0], [0,2,0], [0,2,0], [0,2,0], [0,2,0]], [2,2,3,4,5] ; "pk = pl = pm, pi pj pk @ xy collinear, pj.xy = pk.xy")]
-    #[test_case([[0,0,0], [0,2,0], [0,2,0], [0,2,0], [0,2,0]], [1,2,3,4,5] ; "pk = pl = pm, pi pj pk @ xy collinear, pj.xy = pk.xy, pi.x = pk.x")]
-    fn test_in_sphere(points: [[i32; 3]; 5], case: [usize; 5]) {
+    // Not sure how to test this properly in a non-tedious way.
+    // Let's just test the first degenerate expansion for now.
+    #[test]
+    fn test_in_circle_cocircular() {
+        let points = [[0.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
+        let points = points
+            .iter()
+            .copied()
+            .map(Vector2::from)
+            .collect::<Vec<_>>();
+        // Trusting the insertion sort now
+        assert!(in_circle(&points, |l, i| l[i], 1, 2, 3, 0));
+        assert!(in_circle(&points, |l, i| l[i], 1, 3, 2, 0));
+        assert!(in_circle(&points, |l, i| l[i], 2, 3, 1, 0));
+        assert!(in_circle(&points, |l, i| l[i], 1, 2, 3, 0));
+        assert!(in_circle(&points, |l, i| l[i], 3, 1, 2, 0));
+        assert!(in_circle(&points, |l, i| l[i], 3, 2, 1, 0));
+        assert!(
+            (in_circle(&points, |l, i| l[i], 0, 1, 2, 3)
+                == in_circle(&points, |l, i| l[i], 0, 1, 3, 2))
+                == (orient_2d(&points, |l, i| l[i], 0, 1, 3)
+                    != orient_2d(&points, |l, i| l[i], 0, 1, 2))
+        );
+    }
+
+    #[test]
+    fn test_in_sphere() {
+        // Taking integers to shorten things
+        let points = [[0,0,0], [4,0,0], [0,4,0], [0,0,4], [1,1,1]];
         let points = points
             .iter()
             .copied()
@@ -916,6 +769,30 @@ mod tests {
                 == (orient_3d(&points, |l, i| l[i], 0, 1, 2, 3)
                     != orient_3d(&points, |l, i| l[i], 0, 1, 2, 4))
         );
-        assert_eq!(in_sphere_case(&points, |l, i| l[i], 0, 1, 2, 3, 4), case);
+    }
+
+    // Not sure how to test this properly in a non-tedious way.
+    // Let's just test the first degenerate expansion for now.
+    #[test]
+    fn test_in_sphere_cospherical() {
+        let points = [[0,0,0], [0,0,0], [1,0,0], [0,0,1], [0,1,0]];
+        let points = points
+            .iter()
+            .copied()
+            .map(|[x, y, z]| Vector3::new(x as f64, y as f64, z as f64))
+            .collect::<Vec<_>>();
+        // Trusting the insertion sort now
+        assert!(in_sphere(&points, |l, i| l[i], 1, 2, 3, 4, 0));
+        assert!(in_sphere(&points, |l, i| l[i], 1, 3, 2, 4, 0));
+        assert!(in_sphere(&points, |l, i| l[i], 2, 3, 1, 4, 0));
+        assert!(in_sphere(&points, |l, i| l[i], 2, 4, 1, 3, 0));
+        assert!(in_sphere(&points, |l, i| l[i], 3, 4, 1, 2, 0));
+        assert!(in_sphere(&points, |l, i| l[i], 3, 4, 2, 1, 0));
+        assert!(
+            (in_sphere(&points, |l, i| l[i], 0, 1, 2, 3, 4)
+                == in_sphere(&points, |l, i| l[i], 0, 1, 2, 4, 3))
+                == (orient_3d(&points, |l, i| l[i], 0, 1, 2, 3)
+                    != orient_3d(&points, |l, i| l[i], 0, 1, 2, 4))
+        );
     }
 }
