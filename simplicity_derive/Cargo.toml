@@ -3,6 +3,11 @@ name = "simplicity_derive"
 version = "0.1.0"
 authors = ["Joshua Ani <josh4820@gmail.com>"]
 edition = "2018"
+description = "Macros to help the implementation of simulation of simplicity (https://arxiv.org/pdf/math/9410209.pdf)"
+license = "MIT"
+keywords = ["geometry"]
+categories = ["mathematics"]
+repository = "https://github.com/josh65536/simplicity"
 
 [lib]
 proc-macro = true
