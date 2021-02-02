@@ -314,8 +314,9 @@ pub fn orient_3d<T: ?Sized, Idx: Ord + Copy>(
     !odd
 }
 
-/// Returns whether the last point is inside the circle that goes through
+/// Returns whether the last point is inside the oriented circle that goes through
 /// the first 3 points after perturbing them.
+/// The first 3 points should be oriented positive or the result will be flipped.
 ///
 /// Takes a list of all the points in consideration, an indexing function,
 /// and 4 indexes to the points to calculate the in-circle of.
@@ -332,9 +333,9 @@ pub fn orient_3d<T: ?Sized, Idx: Ord + Copy>(
 ///     Vector2::new(0.0, 0.0),
 ///     Vector2::new(2.0, 3.0),
 /// ];
-/// let inside = in_circle(&points, |l, i| l[i], 0, 2, 3, 1);
+/// let inside = in_circle(&points, |l, i| l[i], 0, 3, 2, 1);
 /// assert!(inside);
-/// let inside = in_circle(&points, |l, i| l[i], 2, 3, 1, 4);
+/// let inside = in_circle(&points, |l, i| l[i], 2, 1, 3, 4);
 /// assert!(!inside);
 /// ```
 pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
@@ -372,6 +373,40 @@ pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
     // !odd
 }
 
+/// Returns whether the last point is inside the circle that goes through
+/// the first 3 points after perturbing them.
+///
+/// Takes a list of all the points in consideration, an indexing function,
+/// and 4 indexes to the points to calculate the in-circle of.
+///
+/// # Example
+///
+/// ```
+/// # use simplicity::{nalgebra, in_circle_unoriented};
+/// # use nalgebra::Vector2;
+/// let points = vec![
+///     Vector2::new(0.0, 2.0),
+///     Vector2::new(1.0, 1.0),
+///     Vector2::new(2.0, 1.0),
+///     Vector2::new(0.0, 0.0),
+///     Vector2::new(2.0, 3.0),
+/// ];
+/// let inside = in_circle_unoriented(&points, |l, i| l[i], 0, 2, 3, 1);
+/// assert!(inside);
+/// let inside = in_circle_unoriented(&points, |l, i| l[i], 2, 3, 1, 4);
+/// assert!(!inside);
+/// ```
+pub fn in_circle_unoriented<T: ?Sized, Idx: Ord + Copy>(
+    list: &T,
+    index_fn: impl Fn(&T, Idx) -> Vec2 + Clone,
+    i: Idx,
+    j: Idx,
+    k: Idx,
+    l: Idx,
+) -> bool {
+    orient_2d(list, index_fn.clone(), i, j, k) == in_circle(list, index_fn, i, j, k, l)
+}
+
 /// Returns whether the last point is inside the sphere that goes through
 /// the first 4 points after perturbing them.
 ///
@@ -390,7 +425,7 @@ pub fn in_circle<T: ?Sized, Idx: Ord + Copy>(
 ///     Vector3::new(0.0, 0.0, 4.0),
 ///     Vector3::new(1.0, 1.0, 1.0),
 /// ];
-/// let inside = in_sphere(&points, |l, i| l[i], 0, 2, 3, 1, 4);
+/// let inside = in_sphere(&points, |l, i| l[i], 0, 2, 1, 3, 4);
 /// assert!(inside);
 /// let inside = in_sphere(&points, |l, i| l[i], 2, 3, 1, 4, 0);
 /// assert!(!inside);
@@ -465,6 +500,42 @@ pub fn in_sphere<T: ?Sized, Idx: Ord + Copy>(
     // case!(2: pj, pm, @ y, != odd);
     // case!(2: pi, pm, @ x, != odd);
     // !odd
+}
+
+/// Returns whether the last point is inside the sphere that goes through
+/// the first 4 points after perturbing them.
+/// The first 4 points must be oriented positive or the result will be flipped.
+///
+/// Takes a list of all the points in consideration, an indexing function,
+/// and 5 indexes to the points to calculate the in-sphere of.
+///
+/// # Example
+///
+/// ```
+/// # use simplicity::{nalgebra, in_sphere_unoriented};
+/// # use nalgebra::Vector3;
+/// let points = vec![
+///     Vector3::new(0.0, 0.0, 0.0),
+///     Vector3::new(4.0, 0.0, 0.0),
+///     Vector3::new(0.0, 4.0, 0.0),
+///     Vector3::new(0.0, 0.0, 4.0),
+///     Vector3::new(1.0, 1.0, 1.0),
+/// ];
+/// let inside = in_sphere_unoriented(&points, |l, i| l[i], 0, 2, 3, 1, 4);
+/// assert!(inside);
+/// let inside = in_sphere_unoriented(&points, |l, i| l[i], 2, 3, 1, 4, 0);
+/// assert!(!inside);
+/// ```
+pub fn in_sphere_unoriented<T: ?Sized, Idx: Ord + Copy>(
+    list: &T,
+    index_fn: impl Fn(&T, Idx) -> Vec3 + Clone,
+    i: Idx,
+    j: Idx,
+    k: Idx,
+    l: Idx,
+    m: Idx,
+) -> bool {
+    orient_3d(list, index_fn.clone(), i, j, k, l) == in_sphere(list, index_fn, i, j, k, l, m)
 }
 
 ///// Returns whether the last point is closer to the second point
@@ -700,7 +771,7 @@ mod tests {
     }
 
     #[test]
-    fn test_in_circle_general() {
+    fn test_in_circle_unoriented_general() {
         let points = [[0.0, 0.0], [0.0, 2.0], [2.0, 2.0], [1.0, 1.0]];
         let points = points
             .iter()
@@ -708,15 +779,15 @@ mod tests {
             .map(Vector2::from)
             .collect::<Vec<_>>();
         // Trusting the insertion sort now
-        assert!(in_circle(&points, |l, i| l[i], 0, 1, 2, 3));
-        assert!(in_circle(&points, |l, i| l[i], 0, 2, 1, 3));
-        assert!(in_circle(&points, |l, i| l[i], 1, 2, 0, 3));
-        assert!(in_circle(&points, |l, i| l[i], 1, 0, 2, 3));
-        assert!(in_circle(&points, |l, i| l[i], 2, 0, 1, 3));
-        assert!(in_circle(&points, |l, i| l[i], 2, 1, 0, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 0, 1, 2, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 0, 2, 1, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 1, 2, 0, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 1, 0, 2, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 2, 0, 1, 3));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 2, 1, 0, 3));
         assert!(
-            (in_circle(&points, |l, i| l[i], 0, 1, 2, 3)
-                == in_circle(&points, |l, i| l[i], 0, 1, 3, 2))
+            (in_circle_unoriented(&points, |l, i| l[i], 0, 1, 2, 3)
+                == in_circle_unoriented(&points, |l, i| l[i], 0, 1, 3, 2))
                 == (orient_2d(&points, |l, i| l[i], 0, 1, 3)
                     != orient_2d(&points, |l, i| l[i], 0, 1, 2))
         );
@@ -725,7 +796,7 @@ mod tests {
     // Not sure how to test this properly in a non-tedious way.
     // Let's just test the first degenerate expansion for now.
     #[test]
-    fn test_in_circle_cocircular() {
+    fn test_in_circle_unoriented_cocircular() {
         let points = [[0.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
         let points = points
             .iter()
@@ -733,22 +804,22 @@ mod tests {
             .map(Vector2::from)
             .collect::<Vec<_>>();
         // Trusting the insertion sort now
-        assert!(in_circle(&points, |l, i| l[i], 1, 2, 3, 0));
-        assert!(in_circle(&points, |l, i| l[i], 1, 3, 2, 0));
-        assert!(in_circle(&points, |l, i| l[i], 2, 3, 1, 0));
-        assert!(in_circle(&points, |l, i| l[i], 1, 2, 3, 0));
-        assert!(in_circle(&points, |l, i| l[i], 3, 1, 2, 0));
-        assert!(in_circle(&points, |l, i| l[i], 3, 2, 1, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 1, 2, 3, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 1, 3, 2, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 2, 3, 1, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 1, 2, 3, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 3, 1, 2, 0));
+        assert!(in_circle_unoriented(&points, |l, i| l[i], 3, 2, 1, 0));
         assert!(
-            (in_circle(&points, |l, i| l[i], 0, 1, 2, 3)
-                == in_circle(&points, |l, i| l[i], 0, 1, 3, 2))
+            (in_circle_unoriented(&points, |l, i| l[i], 0, 1, 2, 3)
+                == in_circle_unoriented(&points, |l, i| l[i], 0, 1, 3, 2))
                 == (orient_2d(&points, |l, i| l[i], 0, 1, 3)
                     != orient_2d(&points, |l, i| l[i], 0, 1, 2))
         );
     }
 
     #[test]
-    fn test_in_sphere() {
+    fn test_in_sphere_unoriented_general() {
         // Taking integers to shorten things
         let points = [[0,0,0], [4,0,0], [0,4,0], [0,0,4], [1,1,1]];
         let points = points
@@ -757,15 +828,15 @@ mod tests {
             .map(|[x, y, z]| Vector3::new(x as f64, y as f64, z as f64))
             .collect::<Vec<_>>();
         // Trusting the insertion sort now
-        assert!(in_sphere(&points, |l, i| l[i], 0, 1, 2, 3, 4));
-        assert!(in_sphere(&points, |l, i| l[i], 0, 2, 1, 3, 4));
-        assert!(in_sphere(&points, |l, i| l[i], 1, 2, 0, 3, 4));
-        assert!(in_sphere(&points, |l, i| l[i], 1, 3, 0, 2, 4));
-        assert!(in_sphere(&points, |l, i| l[i], 2, 3, 0, 1, 4));
-        assert!(in_sphere(&points, |l, i| l[i], 2, 3, 1, 0, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 0, 1, 2, 3, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 0, 2, 1, 3, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 1, 2, 0, 3, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 1, 3, 0, 2, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 2, 3, 0, 1, 4));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 2, 3, 1, 0, 4));
         assert!(
-            (in_sphere(&points, |l, i| l[i], 0, 1, 2, 3, 4)
-                == in_sphere(&points, |l, i| l[i], 0, 1, 2, 4, 3))
+            (in_sphere_unoriented(&points, |l, i| l[i], 0, 1, 2, 3, 4)
+                == in_sphere_unoriented(&points, |l, i| l[i], 0, 1, 2, 4, 3))
                 == (orient_3d(&points, |l, i| l[i], 0, 1, 2, 3)
                     != orient_3d(&points, |l, i| l[i], 0, 1, 2, 4))
         );
@@ -774,7 +845,7 @@ mod tests {
     // Not sure how to test this properly in a non-tedious way.
     // Let's just test the first degenerate expansion for now.
     #[test]
-    fn test_in_sphere_cospherical() {
+    fn test_in_sphere_unoriented_cospherical() {
         let points = [[0,0,0], [0,0,0], [1,0,0], [0,0,1], [0,1,0]];
         let points = points
             .iter()
@@ -782,15 +853,15 @@ mod tests {
             .map(|[x, y, z]| Vector3::new(x as f64, y as f64, z as f64))
             .collect::<Vec<_>>();
         // Trusting the insertion sort now
-        assert!(in_sphere(&points, |l, i| l[i], 1, 2, 3, 4, 0));
-        assert!(in_sphere(&points, |l, i| l[i], 1, 3, 2, 4, 0));
-        assert!(in_sphere(&points, |l, i| l[i], 2, 3, 1, 4, 0));
-        assert!(in_sphere(&points, |l, i| l[i], 2, 4, 1, 3, 0));
-        assert!(in_sphere(&points, |l, i| l[i], 3, 4, 1, 2, 0));
-        assert!(in_sphere(&points, |l, i| l[i], 3, 4, 2, 1, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 1, 2, 3, 4, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 1, 3, 2, 4, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 2, 3, 1, 4, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 2, 4, 1, 3, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 3, 4, 1, 2, 0));
+        assert!(in_sphere_unoriented(&points, |l, i| l[i], 3, 4, 2, 1, 0));
         assert!(
-            (in_sphere(&points, |l, i| l[i], 0, 1, 2, 3, 4)
-                == in_sphere(&points, |l, i| l[i], 0, 1, 2, 4, 3))
+            (in_sphere_unoriented(&points, |l, i| l[i], 0, 1, 2, 3, 4)
+                == in_sphere_unoriented(&points, |l, i| l[i], 0, 1, 2, 4, 3))
                 == (orient_3d(&points, |l, i| l[i], 0, 1, 2, 3)
                     != orient_3d(&points, |l, i| l[i], 0, 1, 2, 4))
         );

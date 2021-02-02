@@ -524,10 +524,7 @@ fn fn_body(h: InHypersphere, sums: Vec<(EFactor, TermSum)>) -> TokenStream2 {
     let index_fn = h.index_fn;
     let dim = h.indexes.len() - 2;
 
-    let orient = format_ident!("orient_{}d", dim);
     let sorted = format_ident!("sorted_{}", h.indexes.len());
-    let index_short_seq = h.indexes[..h.indexes.len() - 1].iter().map(|index| quote! {#index,})
-        .collect::<TokenStream2>();
     let index_seq = h.indexes.iter().map(|index| quote!{#index,}).collect::<TokenStream2>();
 
     let points = h.indexes.iter().map(|index| format_ident!("p{}", index)).collect::<Vec<_>>();
@@ -542,9 +539,7 @@ fn fn_body(h: InHypersphere, sums: Vec<(EFactor, TermSum)>) -> TokenStream2 {
         .collect::<TokenStream2>();
 
     let tokens = quote! { 
-        let flip = !#orient(#list, #index_fn.clone(), #index_short_seq);
         let ([#index_seq], odd) = #sorted([#index_seq]);
-        let odd = odd != flip;
 
         #indexing_seq
 

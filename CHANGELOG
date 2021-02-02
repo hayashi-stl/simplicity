@@ -1,0 +1,3 @@
+version 0.4.0
+    - `in_sphere` and `in_circle` now assume the sphere/circle's points are oriented positive.
+      Use `in_sphere_unoriented` and `in_circle_unoriented` if you don't want that assumption.

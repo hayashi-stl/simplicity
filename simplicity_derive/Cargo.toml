@@ -1,6 +1,6 @@
 [package]
 name = "simplicity_derive"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Joshua Ani <josh4820@gmail.com>"]
 edition = "2018"
 description = "Macros to help the implementation of simulation of simplicity (https://arxiv.org/pdf/math/9410209.pdf)"
